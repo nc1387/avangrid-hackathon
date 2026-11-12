@@ -7,3 +7,10 @@ onedrive-export/Data
 
 # Ignore everything inside the pycache directory
 __pycache__/
+
+# Ignore DuckDB database files
+*.db
+*.db.wal
+
+# Ignore Jupyter autosave checkpoints
+.ipynb_checkpoints/
