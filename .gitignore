@@ -1,0 +1,9 @@
+# Ignore macOS system files
+*.DS_Store
+.DS_Store
+
+# Ignore case data
+onedrive-export/Data
+
+# Ignore everything inside the pycache directory
+__pycache__/
