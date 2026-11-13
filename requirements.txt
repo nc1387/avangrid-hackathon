@@ -11,3 +11,9 @@ pyarrow==21.0.0
 nbformat==5.10.4
 nbclient
 jupyter
+scipy==1.16.3
+# battery simulator: web API + front end (app/server.py, web/index.html) and the Streamlit prototype
+fastapi==0.138.1
+uvicorn==0.49.0
+streamlit==1.51.0
+plotly==6.3.0

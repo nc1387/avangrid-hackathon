@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battery Simulator</title>
+<!--
+  Behind-the-meter battery simulator - front end.
+  Talks to the API in app/server.py. Served by it at http://localhost:8000, or open this file directly
+  (it then calls http://localhost:8000). Point it at another API with ?api=https://your-api.example.com
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.3/plotly.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f3f2ee;
+  --text: #0b0b0b; --text-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --good: #006300; --bad: #d03b3b; --accent: #2a78d6; --accent-ink: #ffffff;
+  --shade: rgba(235,104,52,0.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+    --text: #f0efec; --text-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good: #0ca30c; --bad: #e66767; --accent: #3987e5;
+    --shade: rgba(217,89,38,0.16);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+  --text: #f0efec; --text-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good: #0ca30c; --bad: #e66767; --accent: #3987e5;
+  --shade: rgba(217,89,38,0.16);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--page); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px;
+         border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 5; }
+header h1 { font-size: 18px; margin: 0; }
+header .sub { color: var(--text-2); font-size: 12.5px; }
+.status { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.dot.ok { background: var(--good); } .dot.err { background: var(--bad); }
+.layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); min-height: calc(100vh - 60px); }
+aside { border-right: 1px solid var(--border); background: var(--surface); padding: 8px 16px 96px; overflow-y: auto;
+        max-height: calc(100vh - 60px); position: sticky; top: 60px; }
+main { padding: 20px 24px 48px; min-width: 0; }
+details { border-bottom: 1px solid var(--border); padding: 8px 0; }
+summary { cursor: pointer; font-weight: 600; padding: 6px 0; list-style: none; display: flex; justify-content: space-between; }
+summary::after { content: "+"; color: var(--muted); } details[open] summary::after { content: "–"; }
+.field { margin: 8px 0; }
+.field label, .lbl { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 3px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+input[type=number], select, input[type=text], input[type=search] {
+  width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2);
+  color: var(--text); font: inherit; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.rangeval { float: right; color: var(--text); font-variant-numeric: tabular-nums; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--border);
+        border-radius: 999px; font-size: 12px; cursor: pointer; background: var(--surface-2); }
+.chip input { margin: 0; }
+.check { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; margin: 4px 0; cursor: pointer; }
+.check input { margin-top: 3px; }
+.hint { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+.runbar { position: fixed; bottom: 0; left: 0; width: 320px; padding: 12px 16px; background: var(--surface);
+          border-top: 1px solid var(--border); border-right: 1px solid var(--border); z-index: 6; }
+button { font: inherit; cursor: pointer; }
+.primary { width: 100%; padding: 10px; border: 0; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.primary:disabled { opacity: .6; cursor: progress; }
+.dirty { font-size: 12px; color: var(--s2); margin-top: 6px; min-height: 16px; }
+.banner { padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); margin-bottom: 14px; }
+.banner.err { border-color: var(--bad); }
+.banner:empty { display: none; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.kpi .k { font-size: 12.5px; color: var(--text-2); }
+.kpi .v { font-size: 24px; font-weight: 600; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .d { font-size: 12px; color: var(--text-2); }
+.kpi .d.good { color: var(--good); } .kpi .d.bad { color: var(--bad); }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; overflow-x: auto; }
+.tabs button { background: none; border: 0; padding: 8px 12px; color: var(--text-2); border-bottom: 2px solid transparent; white-space: nowrap; }
+.tabs button.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+.panel { display: none; } .panel.on { display: block; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 14px; min-width: 0; }
+.card h3 { margin: 0 0 2px; font-size: 14.5px; } .card .cap { color: var(--text-2); font-size: 12.5px; margin: 0 0 6px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.chart { width: 100%; height: 340px; } .chart.tall { height: 440px; }
+.toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; float: right; }
+.toggle button { border: 0; background: none; padding: 3px 10px; font-size: 12px; color: var(--text-2); }
+.toggle button.on { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+th { color: var(--text-2); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--surface); }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 10px; }
+.toolbar .field { margin: 0; min-width: 160px; }
+.pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 8px; font-size: 12.5px; color: var(--text-2); }
+.pager button, .btn { border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 6px; padding: 4px 10px; text-decoration: none; font-size: 13px; }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.25); display: none; align-items: center; justify-content: center; z-index: 20; }
+.overlay.on { display: flex; }
+.overlay .box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; max-width: 360px; text-align: center; }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--grid); border-top-color: var(--accent); border-radius: 50%;
+           animation: spin 0.9s linear infinite; margin: 0 auto 10px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 1100px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid2 { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  aside { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+  .runbar { position: sticky; width: auto; left: auto; border-right: 0; }
+  header { padding: 12px 16px; } main { padding: 16px; }
+  .kpis { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Behind-the-meter battery simulator</h1>
+    <div class="sub" id="subtitle">Every customer's actual hourly load, run through a home battery. Rates and demand charge are placeholders.</div>
+  </div>
+  <div class="status"><span class="dot" id="apidot"></span><span id="apitext">Connecting…</span></div>
+</header>
+
+<div class="layout">
+<aside>
+  <details open>
+    <summary>Battery</summary>
+    <div class="row2">
+      <div class="field"><label for="capacity_kwh">Capacity (kWh)</label><input type="number" id="capacity_kwh" step="0.5" min="1"></div>
+      <div class="field"><label for="power_kw">Discharge power (kW)</label><input type="number" id="power_kw" step="0.1" min="0.5"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="max_charge_kw">Max charging (kW)</label><input type="number" id="max_charge_kw" step="0.5" min="0.5"></div>
+      <div class="field"><label for="round_trip_efficiency">Round-trip eff.</label><input type="number" id="round_trip_efficiency" step="0.001" min="0.5" max="1"></div>
+    </div>
+    <div class="field"><span class="lbl">Backup reserve <span class="rangeval" id="reserve_v"></span></span>
+      <input type="range" id="reserve_fraction" min="0" max="0.5" step="0.05"></div>
+    <p class="hint">Defaults: Enphase IQ Battery 10C ×2 from the Challenge Statement (20.16 kWh, 7.68 kW, 89.4%). Charging is capped at 3 kW: a 200-amp service should not take more than ~3 kVA of added load. The 11.52 kW 10-second rating isn't modelled (hourly data).</p>
+  </details>
+
+  <details open>
+    <summary>Tariff (placeholders)</summary>
+    <div class="field"><span class="lbl">Summer months</span><div class="chips" id="summer_months"></div></div>
+    <div class="row2">
+      <div class="field"><label for="on_peak_start">On-peak starts (24h)</label><input type="number" id="on_peak_start" min="0" max="23"></div>
+      <div class="field"><label for="on_peak_end">On-peak ends (24h)</label><input type="number" id="on_peak_end" min="1" max="24"></div>
+    </div>
+    <label class="check"><input type="checkbox" id="weekdays_only"> On-peak on weekdays only</label>
+    <div class="row2">
+      <div class="field"><label for="summer_on_peak">Summer on-peak $/kWh</label><input type="number" id="summer_on_peak" step="0.01" min="0"></div>
+      <div class="field"><label for="summer_off_peak">Summer off-peak $/kWh</label><input type="number" id="summer_off_peak" step="0.01" min="0"></div>
+      <div class="field"><label for="winter_on_peak">Winter on-peak $/kWh</label><input type="number" id="winter_on_peak" step="0.01" min="0"></div>
+      <div class="field"><label for="winter_off_peak">Winter off-peak $/kWh</label><input type="number" id="winter_off_peak" step="0.01" min="0"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="demand_charge">Demand $/kW-month</label><input type="number" id="demand_charge" step="0.5" min="0"></div>
+      <div class="field"><label for="demand_basis">Demand charge on</label>
+        <select id="demand_basis"><option value="on_peak">On-peak max</option><option value="any">Max, any hour</option></select></div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>Charging windows</summary>
+    <div id="plan_modes"></div>
+    <div class="field" id="peak_cut_box"><span class="lbl">System peak cut target <span class="rangeval" id="peak_cut_v"></span></span>
+      <input type="range" id="peak_cut" min="0" max="0.15" step="0.005">
+      <p class="hint">Each segment gets a mix of windows that maximizes total savings while keeping these customers' combined peak at least this far below today's. If that isn't achievable, the lowest achievable peak is used.</p></div>
+    <div class="field" id="window_box"><label for="window">Window</label><select id="window"></select></div>
+    <div id="segment_windows_box"></div>
+    <p class="hint">Each battery spreads its recharge evenly over the rest of its window. If every battery uses the same window they all charge together, which can set a new system peak.</p>
+  </details>
+
+  <details>
+    <summary>Dispatch</summary>
+    <div class="field"><label for="strategy">Strategy</label>
+      <select id="strategy">
+        <option value="hybrid">Hybrid: cover on-peak + shave other spikes</option>
+        <option value="tou">Time-of-use: cover on-peak load</option>
+        <option value="peak_shave">Peak shaving only</option>
+      </select></div>
+    <div class="field"><span class="lbl">Peak threshold (percentile of own monthly load) <span class="rangeval" id="threshold_v"></span></span>
+      <input type="range" id="threshold_quantile" min="0.8" max="0.99" step="0.01"></div>
+    <div class="field"><label for="peak_hours">Grid peak hours to report on</label><input type="number" id="peak_hours" min="10" max="500" step="10"></div>
+  </details>
+
+  <details>
+    <summary>Customers</summary>
+    <div class="field"><span class="lbl">Segments</span><div id="segments"></div></div>
+    <div class="field"><span class="lbl">Only customers flagged as</span><div id="flags"></div></div>
+  </details>
+</aside>
+
+<div class="runbar">
+  <button class="primary" id="run">Run simulation</button>
+  <div class="dirty" id="dirty"></div>
+</div>
+
+<main>
+  <div class="banner" id="banner"></div>
+  <section class="kpis" id="kpis"></section>
+  <nav class="tabs" id="tabs">
+    <button data-tab="overview" class="on">Whole dataset</button>
+    <button data-tab="plan">Charging plan</button>
+    <button data-tab="segments">By segment</button>
+    <button data-tab="ranking">Customer ranking</button>
+    <button data-tab="customer">Customer detail</button>
+  </nav>
+
+  <section class="panel on" id="p-overview">
+    <div class="grid2">
+      <div class="card">
+        <div class="toggle" id="dayToggle"><button data-v="before" class="on">Today's peak day</button><button data-v="after">New peak day</button></div>
+        <h3 id="dayTitle">System load on the peak day</h3><p class="cap" id="dayCap"></p>
+        <div class="chart" id="c-day"></div>
+      </div>
+      <div class="card">
+        <h3>Energy shifted, by month</h3><p class="cap">Change in kWh after the batteries (MWh): on-peak removed, off-peak added.</p>
+        <div class="chart" id="c-month"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="toggle" id="histToggle"><button data-v="savings" class="on">$ per year</button><button data-v="savings_pct">% of bill</button></div>
+      <h3>Annual savings per customer</h3><p class="cap" id="histCap"></p>
+      <div class="chart" id="c-hist"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-plan">
+    <div class="card">
+      <div class="toggle" id="frontToggle"><button data-v="usd" class="on">$M</button><button data-v="pct">% of bills</button></div>
+      <h3>Savings vs the system peak</h3>
+      <p class="cap">The line is the most savings achievable at each system peak when customers get different windows (each segment gets a mix; from a linear program over the simulated loads, which matched full simulations within 0.1%). Squares put every battery on the same window.</p>
+      <div class="chart tall" id="c-frontier"></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Charging window mix by segment</h3><p class="cap">Current plan.</p><div class="chart tall" id="c-mix"></div></div>
+      <div>
+        <div class="card"><h3>Customers per window</h3><p class="cap">Current plan.</p><div class="tablewrap" id="t-perwindow"></div></div>
+        <div class="card"><h3>Same window for everyone</h3><p class="cap">For comparison.</p><div class="tablewrap" id="t-single"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-segments">
+    <div class="card"><h3>Results by segment</h3><p class="cap">"% of bills" is the segment's savings over its total bill; "median % of own bill" is the typical customer's.</p><div class="tablewrap" id="t-segments"></div></div>
+    <div class="grid2">
+      <div class="card"><h3>Average annual savings per customer</h3><p class="cap">Label: $ and median % of own bill.</p><div class="chart" id="c-segsav"></div></div>
+      <div class="card"><h3 id="segCutTitle">Average cut in the grid's top hours</h3><p class="cap">kW per customer, during the hours the grid peaked (before batteries).</p><div class="chart" id="c-segcut"></div></div>
+    </div>
+  </section>
+
+  <section class="panel" id="p-ranking">
+    <div class="card">
+      <div class="toolbar">
+        <div class="field"><label for="rank_by">Rank by</label>
+          <select id="rank_by">
+            <option value="bill_savings">Bill savings ($)</option>
+            <option value="bill_savings_pct">Bill savings (% of bill)</option>
+            <option value="grid_peak_kw_reduction">Cut in grid peak hours</option>
+            <option value="avg_monthly_peak_kw_reduction">Billed peak demand cut</option>
+          </select></div>
+        <div class="field"><label for="rank_segment">Segment</label><select id="rank_segment"></select></div>
+        <div class="field"><label for="rank_customer">Find customer</label><input type="search" id="rank_customer" placeholder="Customer number"></div>
+        <a class="btn" id="csv" href="#" download>Download CSV</a>
+      </div>
+      <div class="tablewrap" id="t-ranking"></div>
+      <div class="pager"><span id="pageinfo"></span><button id="prev">Previous</button><button id="next">Next</button></div>
+      <p class="hint">Click a row to open the customer.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-customer">
+    <div class="card">
+      <div class="toolbar">
+        <div class="field"><label for="cust">Customer number</label><input type="search" id="cust" list="custlist"><datalist id="custlist"></datalist></div>
+        <div class="field" style="flex:1;min-width:220px"><span class="lbl">Week <span class="rangeval" id="week_v"></span></span><input type="range" id="week" min="1" max="52" value="45"></div>
+      </div>
+      <section class="kpis" id="custkpis"></section>
+      <h3 id="custTitle"></h3><p class="cap">Shaded = on-peak hours.</p>
+      <div class="chart tall" id="c-week"></div>
+    </div>
+    <div class="card"><h3>Highest hour each month</h3><p class="cap">Any time of day, before and after the battery (kW). The demand charge uses the setting in the sidebar.</p><div class="chart" id="c-custmonth"></div></div>
+  </section>
+</main>
+</div>
+
+<div class="overlay" id="loading"><div class="box"><div class="spinner"></div><div id="loadingText">Simulating…</div></div></div>
+
+<script>
+'use strict';
+// ------------------------------------------------------------------ setup
+const API = (() => {
+  const q = new URLSearchParams(location.search).get('api');
+  if (q) return q.replace(/\/$/, '');
+  return location.protocol.startsWith('http') ? location.origin : 'http://localhost:8000';
+})();
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const $ = id => document.getElementById(id);
+let META = null, RUN = null, PLAN = null, DIRTY = false;
+let rankPage = 0; const PAGE = 100;
+const view = {day: 'before', hist: 'savings', front: 'usd'};
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const series = i => css('--s' + (i + 1));
+const fmt = {
+  usd: v => (v < 0 ? '-$' : '$') + Math.round(Math.abs(v)).toLocaleString(),
+  usdM: v => '$' + (v / 1e6).toFixed(2) + 'M',
+  pct: (v, d = 1) => v == null || isNaN(v) ? '–' : (v * 100).toFixed(d) + '%',
+  num: (v, d = 0) => v == null || isNaN(v) ? '–' : Number(v).toLocaleString(undefined, {minimumFractionDigits: d, maximumFractionDigits: d}),
+};
+
+async function api(path, opts = {}) {
+  let r;
+  try { r = await fetch(API + path, opts); }
+  catch (e) { throw new Error(`Can't reach the API at ${API}. Start it from the project folder with: uvicorn app.server:app --port 8000`); }
+  if (!r.ok) {
+    let msg = r.statusText;
+    try { const j = await r.json(); msg = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail); } catch (e) {}
+    const err = new Error(msg); err.status = r.status; throw err;
+  }
+  return r.json();
+}
+function banner(msg, isErr) { const b = $('banner'); b.textContent = msg || ''; b.className = 'banner' + (isErr ? ' err' : ''); }
+function loading(on, text) { $('loading').classList.toggle('on', on); if (text) $('loadingText').textContent = text; $('run').disabled = on; }
+
+// ------------------------------------------------------------------ controls
+function buildControls() {
+  const d = META.defaults;
+  const set = (id, v) => { const el = $(id); if (el.type === 'checkbox') el.checked = v; else el.value = v; };
+  Object.entries(d.battery).forEach(([k, v]) => set(k, v));
+  ['on_peak_start','on_peak_end','weekdays_only','summer_on_peak','summer_off_peak','winter_on_peak','winter_off_peak','demand_charge','demand_basis']
+    .forEach(k => set(k, d.tariff[k]));
+  $('summer_months').innerHTML = MONTHS.map((m, i) =>
+    `<label class="chip"><input type="checkbox" value="${i + 1}" ${d.tariff.summer_months.includes(i + 1) ? 'checked' : ''}>${m}</label>`).join('');
+  Object.entries(d.dispatch).forEach(([k, v]) => set(k, v));
+  set('peak_cut', d.plan.peak_cut);
+  $('window').innerHTML = META.windows.map(w => `<option>${w}</option>`).join('');
+  set('window', d.plan.window);
+  $('plan_modes').innerHTML = Object.entries(META.plan_modes).map(([k, label]) =>
+    `<label class="check"><input type="radio" name="mode" value="${k}" ${k === d.plan.mode ? 'checked' : ''}>${label}</label>`).join('');
+  $('segments').innerHTML = META.segments.map(s =>
+    `<label class="check"><input type="checkbox" class="segchk" value="${s.segment}" checked>${s.segment} <span class="hint">(${s.customers.toLocaleString()})</span></label>`).join('');
+  $('flags').innerHTML = META.flags.map(f =>
+    `<label class="check"><input type="checkbox" class="flagchk" value="${f.flag}">${f.label} <span class="hint">(${f.customers.toLocaleString()})</span></label>`).join('');
+  $('rank_segment').innerHTML = '<option value="">All segments</option>' + META.segments.map(s => `<option>${s.segment}</option>`).join('');
+  buildSegmentWindows();
+  syncControls();
+  document.querySelector('aside').addEventListener('input', () => { syncControls(); markDirty(); });
+}
+function buildSegmentWindows() {
+  const prev = {};
+  document.querySelectorAll('.segwin').forEach(s => prev[s.dataset.seg] = s.value);
+  $('segment_windows_box').innerHTML = '<span class="lbl">Window for each segment</span>' + META.segments.map(s => {
+    const best = PLAN && PLAN.best_by_segment[s.segment];
+    const opts = [`<option value="">Best for segment${best ? ' (' + best + ')' : ''}</option>`]
+      .concat(META.windows.map(w => `<option ${prev[s.segment] === w ? 'selected' : ''}>${w}</option>`));
+    return `<div class="field"><label>${s.segment}</label><select class="segwin" data-seg="${s.segment}">${opts.join('')}</select></div>`;
+  }).join('');
+}
+function mode() { return document.querySelector('input[name=mode]:checked').value; }
+function syncControls() {
+  $('reserve_v').textContent = fmt.pct(+$('reserve_fraction').value, 0);
+  $('threshold_v').textContent = (+$('threshold_quantile').value * 100).toFixed(0) + 'th';
+  $('peak_cut_v').textContent = fmt.pct(+$('peak_cut').value, 1);
+  const m = mode();
+  $('peak_cut_box').style.display = m === 'coordinated' ? '' : 'none';
+  $('window_box').style.display = m === 'same' ? '' : 'none';
+  $('segment_windows_box').style.display = m === 'segment' ? '' : 'none';
+}
+function markDirty() { DIRTY = true; $('dirty').textContent = 'Settings changed: run to update.'; }
+
+function scenario() {
+  const num = id => +$(id).value;
+  const segs = [...document.querySelectorAll('.segchk:checked')].map(e => e.value);
+  const segment_windows = {};
+  document.querySelectorAll('.segwin').forEach(s => { if (s.value) segment_windows[s.dataset.seg] = s.value; });
+  return {
+    battery: {capacity_kwh: num('capacity_kwh'), power_kw: num('power_kw'), round_trip_efficiency: num('round_trip_efficiency'),
+              max_charge_kw: num('max_charge_kw'), reserve_fraction: num('reserve_fraction')},
+    tariff: {summer_months: [...document.querySelectorAll('#summer_months input:checked')].map(e => +e.value),
+             on_peak_start: num('on_peak_start'), on_peak_end: num('on_peak_end'), weekdays_only: $('weekdays_only').checked,
+             summer_on_peak: num('summer_on_peak'), summer_off_peak: num('summer_off_peak'),
+             winter_on_peak: num('winter_on_peak'), winter_off_peak: num('winter_off_peak'),
+             demand_charge: num('demand_charge'), demand_basis: $('demand_basis').value},
+    dispatch: {strategy: $('strategy').value, threshold_quantile: num('threshold_quantile'), peak_hours: num('peak_hours')},
+    plan: {mode: mode(), peak_cut: num('peak_cut'), window: $('window').value, segment_windows},
+    filters: {segments: segs.length === META.segments.length ? null : segs,
+              flags: [...document.querySelectorAll('.flagchk:checked')].map(e => e.value)},
+  };
+}
+
+// ------------------------------------------------------------------ run
+async function run() {
+  const s = scenario();
+  if (s.filters.segments && !s.filters.segments.length) { banner('Pick at least one segment.', true); return; }
+  loading(true, s.plan.mode === 'same' ? 'Simulating every customer…'
+    : 'Simulating every customer under each charging window, then planning… (about 20 s the first time for new settings)');
+  banner('');
+  try {
+    RUN = await api('/api/simulate', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(s)});
+    DIRTY = false; $('dirty').textContent = '';
+    PLAN = null; rankPage = 0;
+    const info = RUN.plan_info;
+    if (s.plan.mode === 'coordinated' && info && info.target_met === false)
+      banner(`A ${fmt.pct(s.plan.peak_cut)} peak cut isn't achievable with these settings; using the lowest achievable system peak, ${(info.peak_cap_kw / 1000).toFixed(1)} MW.`);
+    renderAll();
+    loadPlan(); loadRanking(); loadCustomerList();
+  } catch (e) { banner(e.message, true); }
+  finally { loading(false); }
+}
+
+function renderAll() {
+  renderKpis(); renderDay(); renderMonthly(); renderHist(); renderSegments(); renderMix();
+  const s = RUN.summary;
+  $('subtitle').textContent = `${s.customers.toLocaleString()} customers, each with their actual hourly load (${META.first_date} to ${META.last_date}). Rates and demand charge are placeholders; bills cover energy and demand charges only.`;
+}
+
+// ------------------------------------------------------------------ KPIs
+const basisText = () => RUN.scenario.tariff.demand_basis === 'on_peak' ? 'highest on-peak hour' : 'highest hour';
+function kpi(k, v, d, cls = '') { return `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="d ${cls}">${d}</div></div>`; }
+function renderKpis() {
+  const s = RUN.summary, dpk = s.system_peak_after_kw - s.system_peak_before_kw;
+  $('kpis').innerHTML = [
+    kpi('Annual bill savings', fmt.usdM(s.total_savings), `${fmt.pct(s.savings_share_of_bill)} of total bills`, 'good'),
+    kpi('Savings per customer', fmt.usd(s.avg_savings), `median ${fmt.usd(s.median_savings)} · ${fmt.pct(s.median_savings_pct, 0)} of own bill`),
+    kpi('On-peak kWh removed', (s.on_peak_kwh_removed / 1e6).toFixed(1) + ' GWh', `−${fmt.pct(s.on_peak_share_removed)} of on-peak use`, 'good'),
+    kpi('Off-peak kWh added', (s.off_peak_kwh_added / 1e6).toFixed(1) + ' GWh', `+${fmt.pct(s.off_peak_share_added)} of off-peak use`),
+    kpi('Billed peak demand cut', s.avg_monthly_peak_cut_kw.toFixed(2) + ' kW', `avg per customer-month (${basisText()}) · ${fmt.pct(s.monthly_peak_cut_share, 0)} of it`, 'good'),
+    kpi(`Cut in the grid's top ${s.peak_hours} hours`, (s.grid_peak_cut_kw / 1000).toFixed(1) + ' MW', `${fmt.pct(s.grid_peak_cut_share, 0)} of these customers' load then`, 'good'),
+    kpi('System peak after', (s.system_peak_after_kw / 1000).toFixed(1) + ' MW',
+        `${dpk <= 0 ? '−' : '+'}${Math.abs(dpk / 1000).toFixed(2)} MW (${dpk <= 0 ? '−' : '+'}${fmt.pct(Math.abs(dpk) / s.system_peak_before_kw)}) vs today's ${(s.system_peak_before_kw / 1000).toFixed(1)} MW`,
+        dpk <= 0 ? 'good' : 'bad'),
+    kpi('Battery losses', (s.losses_kwh / 1e6).toFixed(1) + ' GWh', `${s.median_cycles.toFixed(0)} full cycles a year (median)`),
+  ].join('');
+}
+
+// ------------------------------------------------------------------ charts
+const PCFG = {displayModeBar: false, responsive: true};
+function baseLayout(extra = {}) {
+  const ax = {gridcolor: css('--grid'), linecolor: css('--axis'), zerolinecolor: css('--axis'), tickfont: {color: css('--muted')},
+              title: {font: {color: css('--text-2'), size: 12}}, automargin: true};
+  return Object.assign({
+    paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+    font: {family: 'system-ui, -apple-system, Segoe UI, sans-serif', color: css('--text-2'), size: 12},
+    margin: {t: 10, r: 10, b: 40, l: 50}, legend: {orientation: 'h', y: 1.12, x: 0, font: {color: css('--text-2')}},
+    hoverlabel: {bgcolor: css('--surface'), bordercolor: css('--border'), font: {color: css('--text')}},
+    xaxis: Object.assign({}, ax), yaxis: Object.assign({}, ax),
+  }, extra, {xaxis: Object.assign({}, ax, extra.xaxis || {}), yaxis: Object.assign({}, ax, extra.yaxis || {})});
+}
+function onPeakRuns(flags) {           // [start, end) index ranges of consecutive on-peak hours
+  const out = []; let i = 0;
+  while (i < flags.length) { if (flags[i]) { let j = i; while (j < flags.length && flags[j]) j++; out.push([i, j]); i = j; } else i++; }
+  return out;
+}
+const shade = (x0, x1) => ({type: 'rect', xref: 'x', yref: 'paper', x0, x1, y0: 0, y1: 1, fillcolor: css('--shade'), line: {width: 0}, layer: 'below'});
+function renderDay() {
+  const d = view.day === 'before' ? RUN.peak_day_before : RUN.peak_day_after;
+  const hrs = Array.from({length: 24}, (_, i) => i + 1);
+  $('dayTitle').textContent = view.day === 'before' ? `System load on today's peak day (${d.date})` : `System load on the new peak day (${d.date})`;
+  $('dayCap').textContent = `Peak hour ending ${d.peak_hour_ending}. Shaded = on-peak hours.`;
+  const shapes = onPeakRuns(d.on_peak).map(([i, j]) => shade(i + 0.5, j + 0.5));
+  Plotly.react('c-day', [
+    {x: hrs, y: d.before, name: 'Before', mode: 'lines', line: {color: css('--muted'), width: 2}, hovertemplate: '%{y:.1f} MW'},
+    {x: hrs, y: d.after, name: 'After batteries', mode: 'lines', line: {color: series(0), width: 2}, hovertemplate: '%{y:.1f} MW'},
+  ], baseLayout({hovermode: 'x unified', shapes, xaxis: {title: {text: 'Hour ending'}, dtick: 2}, yaxis: {title: {text: 'MW'}, rangemode: 'tozero'}}), PCFG);
+}
+function renderMonthly() {
+  const m = RUN.monthly;
+  Plotly.react('c-month', [
+    {type: 'bar', x: m.map(r => r.month), y: m.map(r => r.on_peak_change_mwh), name: 'On-peak', marker: {color: series(1)},
+     hovertemplate: 'On-peak %{y:,.0f} MWh<extra></extra>'},
+    {type: 'bar', x: m.map(r => r.month), y: m.map(r => r.off_peak_change_mwh), name: 'Off-peak', marker: {color: series(0)},
+     hovertemplate: 'Off-peak +%{y:,.0f} MWh<extra></extra>'},
+  ], baseLayout({barmode: 'relative', bargap: 0.25, hovermode: 'x unified', yaxis: {title: {text: 'MWh'}}}), PCFG);
+}
+function renderHist() {
+  const h = RUN.histogram[view.hist], isPct = view.hist === 'savings_pct';
+  const xs = h.counts.map((_, i) => (h.edges[i] + h.edges[i + 1]) / 2), w = h.edges[1] - h.edges[0];
+  const s = RUN.summary;
+  $('histCap').textContent = isPct ? `Savings as a share of each customer's own bill. Median ${fmt.pct(s.median_savings_pct)}, average ${fmt.pct(s.avg_savings_pct)}.`
+                                   : `Median ${fmt.usd(s.median_savings)}, average ${fmt.usd(s.avg_savings)} a year.`;
+  Plotly.react('c-hist', [{type: 'bar', x: xs, y: h.counts, width: w * 0.92, marker: {color: series(0)},
+    customdata: h.counts.map((_, i) => [h.edges[i], h.edges[i + 1]]),
+    hovertemplate: isPct ? '%{customdata[0]:.0f}–%{customdata[1]:.0f}% of bill: %{y:,} customers<extra></extra>'
+                         : '$%{customdata[0]:,.0f}–$%{customdata[1]:,.0f}: %{y:,} customers<extra></extra>'}],
+    baseLayout({xaxis: {title: {text: isPct ? '% of own bill' : '$ per year'}, ticksuffix: isPct ? '%' : '', tickprefix: isPct ? '' : '$'},
+                yaxis: {title: {text: 'Customers'}}, bargap: 0}), PCFG);
+}
+
+// ------------------------------------------------------------------ tables
+function table(el, cols, rows, onClick) {
+  const head = '<tr>' + cols.map(c => `<th class="${c.n ? 'n' : ''}">${c.label}</th>`).join('') + '</tr>';
+  const body = rows.map((r, i) => `<tr class="${onClick ? 'click' : ''}" data-i="${i}">` + cols.map(c => {
+    const v = r[c.key]; const txt = c.f ? c.f(v, r) : (v ?? '');
+    return `<td class="${c.n ? 'n' : ''}">${String(txt).replace(/[&<>]/g, ch => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]))}</td>`;
+  }).join('') + '</tr>').join('');
+  $(el).innerHTML = `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  if (onClick) $(el).querySelectorAll('tr.click').forEach(tr => tr.addEventListener('click', () => onClick(rows[+tr.dataset.i])));
+}
+
+function renderSegments() {
+  const rows = RUN.segments, ph = RUN.summary.peak_hours;
+  table('t-segments', [
+    {key: 'segment', label: 'Segment'},
+    {key: 'customers', label: 'Customers', n: 1, f: v => fmt.num(v)},
+    {key: 'total_savings', label: 'Total savings', n: 1, f: fmt.usd},
+    {key: 'savings_share_of_bill', label: '% of bills', n: 1, f: v => fmt.pct(v)},
+    {key: 'avg_savings', label: 'Avg savings', n: 1, f: fmt.usd},
+    {key: 'median_savings', label: 'Median savings', n: 1, f: fmt.usd},
+    {key: 'median_savings_pct', label: 'Median % of own bill', n: 1, f: v => fmt.pct(v)},
+    {key: 'avg_monthly_peak_cut_kw', label: 'Billed peak cut (kW)', n: 1, f: v => fmt.num(v, 2)},
+    {key: 'grid_peak_cut_kw_per_customer', label: `Top-${ph}-hour cut (kW/cust.)`, n: 1, f: v => fmt.num(v, 2)},
+    {key: 'grid_peak_cut_mw', label: `Top-${ph}-hour cut (MW)`, n: 1, f: v => fmt.num(v, 2)},
+    {key: 'on_peak_mwh_removed', label: 'On-peak removed (MWh)', n: 1, f: v => fmt.num(v)},
+    {key: 'off_peak_mwh_added', label: 'Off-peak added (MWh)', n: 1, f: v => fmt.num(v)},
+  ], rows);
+  const segs = rows.map(r => r.segment);
+  const lay = (title, max) => baseLayout({margin: {t: 10, r: 20, b: 40, l: 10}, showlegend: false,
+    xaxis: {title: {text: title}, range: [0, max]}, yaxis: {autorange: 'reversed', tickfont: {color: css('--text-2')}}});
+  const sav = rows.map(r => r.avg_savings);
+  Plotly.react('c-segsav', [{type: 'bar', orientation: 'h', y: segs, x: sav, marker: {color: series(0)},
+    text: rows.map(r => `${fmt.usd(r.avg_savings)} · ${fmt.pct(r.median_savings_pct, 0)}`), textposition: 'outside',
+    textfont: {color: css('--text-2')}, cliponaxis: false,
+    hovertemplate: '%{y}<br>Average %{x:$,.0f}/yr<extra></extra>'}], lay('$ per year', Math.max(...sav) * 1.35), PCFG);
+  const cut = rows.map(r => r.grid_peak_cut_kw_per_customer);
+  $('segCutTitle').textContent = `Average cut in the grid's top ${ph} hours`;
+  Plotly.react('c-segcut', [{type: 'bar', orientation: 'h', y: segs, x: cut, marker: {color: series(1)},
+    text: cut.map(v => v.toFixed(2) + ' kW'), textposition: 'outside', textfont: {color: css('--text-2')}, cliponaxis: false,
+    hovertemplate: '%{y}<br>%{x:.2f} kW per customer<extra></extra>'}], lay('kW per customer', Math.max(...cut) * 1.3), PCFG);
+}
+
+function renderMix() {
+  const mix = RUN.window_mix, segs = [...new Set(mix.map(r => r.segment))].sort();
+  const traces = META.windows.map((w, i) => {
+    const byseg = Object.fromEntries(mix.filter(r => r.charge_window === w).map(r => [r.segment, r]));
+    if (!Object.keys(byseg).length) return null;
+    return {type: 'bar', orientation: 'h', name: w, y: segs, x: segs.map(s => byseg[s] ? byseg[s].share * 100 : 0),
+            customdata: segs.map(s => byseg[s] ? byseg[s].customers : 0), marker: {color: series(i), line: {color: css('--surface'), width: 1}},
+            hovertemplate: `%{y}<br>${w}: %{x:.0f}% (%{customdata:,} customers)<extra></extra>`};
+  }).filter(Boolean);
+  Plotly.react('c-mix', traces, baseLayout({barmode: 'stack', margin: {t: 10, r: 10, b: 40, l: 10},
+    legend: {orientation: 'h', y: -0.15, x: 0}, xaxis: {title: {text: '% of customers'}, range: [0, 100]},
+    yaxis: {autorange: 'reversed', tickfont: {color: css('--text-2')}}}), PCFG);
+  table('t-perwindow', [
+    {key: 'charge_window', label: 'Window'},
+    {key: 'customers', label: 'Customers', n: 1, f: v => fmt.num(v)},
+    {key: 'avg_savings', label: 'Avg savings', n: 1, f: fmt.usd},
+    {key: 'median_savings_pct', label: 'Median % of own bill', n: 1, f: v => fmt.pct(v)},
+    {key: 'savings_share_of_bill', label: '% of bills', n: 1, f: v => fmt.pct(v)},
+  ], RUN.per_window);
+}
+
+// ------------------------------------------------------------------ charging plan (loaded after the run)
+async function loadPlan() {
+  const id = RUN.run_id;
+  $('t-single').innerHTML = '<p class="hint">Comparing windows…</p>';
+  try {
+    const p = await api(`/api/runs/${id}/plan`);
+    if (!RUN || RUN.run_id !== id) return;
+    PLAN = p; renderFrontier(); buildSegmentWindows(); syncControls();
+    table('t-single', [
+      {key: 'window', label: 'Window'},
+      {key: 'total_savings', label: 'Savings', n: 1, f: fmt.usdM},
+      {key: 'savings_share_of_bill', label: '% of bills', n: 1, f: v => fmt.pct(v)},
+      {key: 'grid_peak_hour_cut_mw', label: `Top-${RUN.summary.peak_hours}-hour cut (MW)`, n: 1, f: v => fmt.num(v, 1)},
+      {key: 'system_peak_mw_after', label: 'System peak (MW)', n: 1, f: v => fmt.num(v, 2)},
+    ], p.single_windows);
+  } catch (e) { $('t-single').innerHTML = `<p class="hint">${e.message}</p>`; }
+}
+function renderFrontier() {
+  if (!PLAN) return;
+  const pct = view.front === 'pct', y = (usd, share) => pct ? share * 100 : usd / 1e6;
+  const fr = PLAN.frontier, sw = PLAN.single_windows, cur = PLAN.current;
+  const pos = {'Any off-peak hour': 'top center', '9 pm - noon': 'bottom right', 'Midnight - 9 am': 'bottom center'};
+  const hov = '%{customdata[0]}<br>System peak %{x:.2f} MW<br>Savings $%{customdata[1]:.2f}M (%{customdata[2]:.1f}% of bills)<extra></extra>';
+  Plotly.react('c-frontier', [
+    {x: fr.map(r => r.system_peak_kw / 1000), y: fr.map(r => y(r.total_savings, r.savings_share_of_bill)), mode: 'lines+markers',
+     name: 'Coordinated windows', line: {color: series(0), width: 2}, marker: {size: 8, color: series(0)},
+     customdata: fr.map(r => ['Coordinated windows', r.total_savings / 1e6, r.savings_share_of_bill * 100]), hovertemplate: hov},
+    {x: sw.map(r => r.system_peak_mw_after), y: sw.map(r => y(r.total_savings, r.savings_share_of_bill)), mode: 'markers+text',
+     name: 'Same window for everyone', text: sw.map(r => r.window), textposition: sw.map(r => pos[r.window] || 'top center'),
+     textfont: {color: css('--text-2'), size: 11}, marker: {size: 10, symbol: 'square', color: css('--muted')},
+     customdata: sw.map(r => [r.window + ' for everyone', r.total_savings / 1e6, r.savings_share_of_bill * 100]), hovertemplate: hov},
+    {x: [cur.system_peak_kw / 1000], y: [y(cur.total_savings, cur.savings_share_of_bill)], mode: 'markers', name: 'Current plan',
+     marker: {size: 18, symbol: 'star', color: series(1), line: {color: css('--surface'), width: 2}},
+     customdata: [['Current plan', cur.total_savings / 1e6, cur.savings_share_of_bill * 100]], hovertemplate: hov},
+  ], baseLayout({
+    xaxis: {title: {text: 'System peak after batteries (MW)'}},
+    yaxis: {title: {text: pct ? 'Savings (% of total bills)' : 'Total annual savings ($M)'}, ticksuffix: pct ? '%' : ''},
+    shapes: [{type: 'line', xref: 'x', yref: 'paper', x0: PLAN.system_peak_before_kw / 1000, x1: PLAN.system_peak_before_kw / 1000,
+              y0: 0, y1: 1, line: {color: css('--muted'), width: 1.5, dash: 'dash'}}],
+    annotations: [{xref: 'x', yref: 'paper', x: PLAN.system_peak_before_kw / 1000, y: 0, xanchor: 'left', yanchor: 'bottom',
+                   text: " Today's system peak", showarrow: false, font: {color: css('--text-2'), size: 11}}],
+  }), PCFG);
+}
+
+// ------------------------------------------------------------------ ranking
+async function loadRanking() {
+  if (!RUN) return;
+  const p = new URLSearchParams({rank_by: $('rank_by').value, limit: PAGE, offset: rankPage * PAGE});
+  if ($('rank_segment').value) p.set('segment', $('rank_segment').value);
+  const c = $('rank_customer').value.trim(); if (c) p.set('customer', c);
+  $('csv').href = `${API}/api/runs/${RUN.run_id}/ranking.csv?` + new URLSearchParams({rank_by: $('rank_by').value, ...( $('rank_segment').value ? {segment: $('rank_segment').value} : {})});
+  try {
+    const r = await api(`/api/runs/${RUN.run_id}/ranking?${p}`);
+    const ph = RUN.summary.peak_hours;
+    table('t-ranking', [
+      {key: 'rank', label: 'Rank', n: 1, f: v => fmt.num(v)},
+      {key: 'CUSTOMER_NUMBER', label: 'Customer'},
+      {key: 'segment', label: 'Segment'},
+      {key: 'charge_window', label: 'Window'},
+      {key: 'bill_savings', label: 'Savings ($/yr)', n: 1, f: fmt.usd},
+      {key: 'bill_savings_pct', label: 'Savings (% of bill)', n: 1, f: v => fmt.pct(v)},
+      {key: 'energy_savings', label: 'Energy', n: 1, f: fmt.usd},
+      {key: 'demand_savings', label: 'Demand', n: 1, f: fmt.usd},
+      {key: 'bill_before', label: 'Bill before', n: 1, f: fmt.usd},
+      {key: 'bill_after', label: 'Bill after', n: 1, f: fmt.usd},
+      {key: 'avg_monthly_peak_kw_before', label: 'Billed peak (kW)', n: 1, f: v => fmt.num(v, 2)},
+      {key: 'avg_monthly_peak_kw_reduction', label: 'Billed peak cut (kW)', n: 1, f: v => fmt.num(v, 2)},
+      {key: 'grid_peak_kw_reduction', label: `Top-${ph}-hour cut (kW)`, n: 1, f: v => fmt.num(v, 2)},
+      {key: 'on_peak_kwh_decrease', label: 'On-peak kWh removed', n: 1, f: v => fmt.num(v)},
+      {key: 'off_peak_kwh_increase', label: 'Off-peak kWh added', n: 1, f: v => fmt.num(v)},
+      {key: 'equivalent_full_cycles', label: 'Cycles/yr', n: 1, f: v => fmt.num(v)},
+    ], r.rows, row => { $('cust').value = row.CUSTOMER_NUMBER; openTab('customer'); loadCustomer(); });
+    const pages = Math.max(1, Math.ceil(r.total / PAGE));
+    $('pageinfo').textContent = `${r.total.toLocaleString()} customers · page ${rankPage + 1} of ${pages}`;
+    $('prev').disabled = rankPage === 0; $('next').disabled = rankPage + 1 >= pages;
+  } catch (e) { if (e.status === 404) banner(e.message, true); else $('t-ranking').innerHTML = `<p class="hint">${e.message}</p>`; }
+}
+
+// ------------------------------------------------------------------ customer detail
+async function loadCustomerList() {
+  try {
+    const r = await api(`/api/runs/${RUN.run_id}/ranking?rank_by=bill_savings&limit=500`);
+    $('custlist').innerHTML = r.rows.map(x => `<option value="${x.CUSTOMER_NUMBER}">${x.segment} · ${fmt.usd(x.bill_savings)}</option>`).join('');
+    if (!$('cust').value && r.rows.length) $('cust').value = r.rows[0].CUSTOMER_NUMBER;
+    if ($('p-customer').classList.contains('on')) loadCustomer();
+  } catch (e) {}
+}
+async function loadCustomer() {
+  const n = $('cust').value.trim();
+  if (!RUN || !n) return;
+  $('week_v').textContent = $('week').value;
+  try {
+    const c = await api(`/api/runs/${RUN.run_id}/customers/${encodeURIComponent(n)}?week=${$('week').value}`);
+    const s = c.stats;
+    $('week').max = c.weeks;
+    $('custkpis').innerHTML = [
+      kpi('Annual savings', fmt.usd(s.bill_savings), `${fmt.pct(s.bill_savings_pct, 0)} of a ${fmt.usd(s.bill_before)} bill`, 'good'),
+      kpi('Billed peak demand (avg month)', s.avg_monthly_peak_kw_before.toFixed(2) + ' → ' + (s.avg_monthly_peak_kw_before - s.avg_monthly_peak_kw_reduction).toFixed(2) + ' kW',
+          `−${s.avg_monthly_peak_kw_reduction.toFixed(2)} kW · ${basisText()}`, 'good'),
+      kpi('On-peak kWh removed', fmt.num(s.on_peak_kwh_decrease), `energy savings ${fmt.usd(s.energy_savings)}`),
+      kpi('Charging window', s.charge_window, `${s.segment}`),
+    ].join('');
+    $('custTitle').textContent = `Customer ${c.customer}: hourly load, week ${c.week} (from ${c.times[0].slice(0, 10)})`;
+    const shapes = onPeakRuns(c.on_peak).map(([i, j]) => shade(c.times[i], c.times[j] || c.times[j - 1]));
+    Plotly.react('c-week', [
+      {x: c.times, y: c.before, name: 'Before', mode: 'lines', line: {color: css('--muted'), width: 1.5}, hovertemplate: '%{y:.2f} kWh'},
+      {x: c.times, y: c.after, name: 'After battery', mode: 'lines', line: {color: series(0), width: 2}, hovertemplate: '%{y:.2f} kWh'},
+    ], baseLayout({hovermode: 'x unified', shapes, yaxis: {title: {text: 'kWh in the hour'}, rangemode: 'tozero'}}), PCFG);
+    Plotly.react('c-custmonth', [
+      {type: 'bar', x: c.monthly.map(r => r.month), y: c.monthly.map(r => r.peak_kw_before), name: 'Before', marker: {color: css('--muted')}, hovertemplate: '%{y:.2f} kW'},
+      {type: 'bar', x: c.monthly.map(r => r.month), y: c.monthly.map(r => r.peak_kw_after), name: 'After battery', marker: {color: series(0)}, hovertemplate: '%{y:.2f} kW'},
+    ], baseLayout({barmode: 'group', bargap: 0.25, hovermode: 'x unified', yaxis: {title: {text: 'kW'}}}), PCFG);
+  } catch (e) {
+    $('custkpis').innerHTML = `<p class="hint">${e.message}</p>`;
+  }
+}
+
+// ------------------------------------------------------------------ tabs, toggles, events
+function openTab(t) {
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.id === 'p-' + t));
+  document.querySelectorAll(`#p-${t} .chart`).forEach(el => { if (el.data) Plotly.Plots.resize(el); });
+  if (t === 'customer') loadCustomer();
+}
+function toggle(id, key, fn) {
+  $(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    view[key] = b.dataset.v; $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); if (RUN) fn();
+  });
+}
+function wire() {
+  $('run').addEventListener('click', run);
+  $('tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) openTab(b.dataset.tab); });
+  toggle('dayToggle', 'day', renderDay); toggle('histToggle', 'hist', renderHist); toggle('frontToggle', 'front', renderFrontier);
+  ['rank_by', 'rank_segment'].forEach(id => $(id).addEventListener('change', () => { rankPage = 0; loadRanking(); }));
+  let t; $('rank_customer').addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { rankPage = 0; loadRanking(); }, 300); });
+  $('prev').addEventListener('click', () => { rankPage = Math.max(0, rankPage - 1); loadRanking(); });
+  $('next').addEventListener('click', () => { rankPage++; loadRanking(); });
+  $('cust').addEventListener('change', loadCustomer);
+  let wt; $('week').addEventListener('input', () => { $('week_v').textContent = $('week').value; clearTimeout(wt); wt = setTimeout(loadCustomer, 250); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (RUN) { renderAll(); renderFrontier(); loadCustomer(); } });
+}
+
+async function init() {
+  wire();
+  if (typeof Plotly === 'undefined') { banner('Could not load the charting library (Plotly) from cdnjs. Check the internet connection.', true); return; }
+  try {
+    loading(true, 'Loading customer data… (about 10 s on first start)');
+    META = await api('/api/meta');
+    $('apidot').className = 'dot ok'; $('apitext').textContent = 'API: ' + API.replace(/^https?:\/\//, '');
+    buildControls();
+    loading(false);
+    await run();
+  } catch (e) {
+    loading(false);
+    $('apidot').className = 'dot err'; $('apitext').textContent = 'API unreachable';
+    banner(e.message, true);
+  }
+}
+init();
+</script>
+</body>
+</html>

@@ -4,10 +4,13 @@ Paths are resolved from this file's location, so they work whether code runs fro
 folder, a notebook, a script or a background job.
 """
 
+import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = PROJECT_ROOT / 'onedrive-export' / 'Data'
+# The data folder: the local OneDrive export by default; set AVANGRID_DATA_DIR to use another location
+# (e.g. a disk mounted on a hosted server).
+DATA_DIR = Path(os.environ.get('AVANGRID_DATA_DIR', PROJECT_ROOT / 'onedrive-export' / 'Data'))
 METER_DATA_GLOB = str(DATA_DIR / 'meter-data' / '**' / '*.csv')
 DB_PATH = DATA_DIR / 'avangrid.db'
 CUSTOMER_GROUPS_PATH = DATA_DIR / 'EV_Heat Pump_Solar PV Customers.xlsx'
