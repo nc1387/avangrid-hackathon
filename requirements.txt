@@ -1,0 +1,13 @@
+# Versions used to develop and test the notebooks and the avangrid package.
+duckdb==2.0.0
+polars==1.42.0
+numpy==2.3.5
+scikit-learn==1.7.2
+joblib==1.5.2
+threadpoolctl==3.5.0
+matplotlib==3.10.6
+fastexcel==0.20.2
+pyarrow==21.0.0
+nbformat==5.10.4
+nbclient
+jupyter

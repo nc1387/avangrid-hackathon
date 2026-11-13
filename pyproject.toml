@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "avangrid"
+version = "0.1.0"
+description = "Shared code for the Avangrid AMI analysis notebooks"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = ["avangrid"]
