@@ -1,4 +1,4 @@
-"""Pattern comparison between windows (notebook 50) and change-point scans (notebook 60)."""
+"""Pattern comparison between windows (notebooks 45 and 90) and change-point scans (notebook 45)."""
 
 import numpy as np
 
@@ -104,7 +104,7 @@ def ev_weekly_signal(kwh: np.ndarray, temp: np.ndarray, n_weeks: int) -> np.ndar
 
 
 def tech_weekly_signals(D: dict, kwh: np.ndarray, temp: np.ndarray, n_weeks: int) -> dict[str, np.ndarray]:
-    """One weekly series per technology, oriented so that adoption makes it go up (as in notebook 60)."""
+    """One weekly series per technology, oriented so that adoption makes it go up (as in notebook 45)."""
     from .features import weekly
     return {'EV': ev_weekly_signal(kwh, temp, n_weeks),
             'PV': -weekly(np.asarray(D['e_midday']) - np.asarray(D['e_night']), n_weeks),  # deeper midday dip -> higher
@@ -120,7 +120,7 @@ def tech_scan_weeks(temp: np.ndarray, n_weeks: int) -> dict[str, np.ndarray]:
 
 def tech_change_points(D: dict, kwh: np.ndarray, temp: np.ndarray, min_weeks: int,
                        not_listed: np.ndarray, thresholds: dict | None = None) -> dict[str, dict]:
-    """Technology-specific change scan for every customer (notebook 60, section 3b).
+    """Technology-specific change scan for every customer (notebook 45, part 2, section 3b).
 
     Returns {tech: {'z', 'week', 'threshold', 'flag'}}. Thresholds default to the FLAG_QUANTILE of
     customers on no list; pass ``thresholds`` to score new rows (e.g. simulated customers) on the same scale.

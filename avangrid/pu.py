@@ -1,6 +1,6 @@
 """Positive-unlabeled (PU) learning, with models fitted in parallel processes.
 
-``bagging_pu`` gives the same scores as the sequential version used in notebooks 40 and 60
+``bagging_pu`` gives the same scores as the sequential version in notebooks 45 and 50 (part 1)
 (same random samples and model seeds), but fits the models several at a time in separate
 processes, each limited to one thread. On this machine that is several times faster.
 

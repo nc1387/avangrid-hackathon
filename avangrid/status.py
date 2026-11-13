@@ -1,6 +1,7 @@
 """The ``customer_status`` table: one row per customer number, saying which step (if any) excluded them.
 
-Built from tables made by notebooks 10-50, so rebuild it after re-running any of those:
+Built from tables made by notebooks 10-40 (notebook 40 builds it as its last step), so rebuild it after
+re-running any of those:
 
     python -m avangrid status-build
 
@@ -11,7 +12,7 @@ Customers are excluded at these stages, in order:
 | no meter data              | absent from the meter data entirely                                              |
 | dropped: incomplete        | in ``excluded_customers`` (joined late, left early, or a gap longer than 3 days) |
 | excluded: low usage        | in ``ami_analysis`` but averages under 0.05 kWh/hour, so left out of peer groups |
-| included                   | in ``customer_peer_groups``: used by notebooks 50 and 60 and the cached arrays   |
+| included                   | in ``customer_peer_groups``: used from notebook 40 on and in the cached arrays  |
 
 ``in_ami_analysis`` is True for both "excluded: low usage" and "included": notebooks 20-40 use
 every ``ami_analysis`` customer.

@@ -1,7 +1,7 @@
 """Hourly data as NumPy arrays of shape customers x days x 24 hours, cached on disk.
 
 Building these from DuckDB takes several seconds and about 2 GB of memory; loading them from
-the cache is near-instant (memory-mapped). They depend on tables created by notebooks 20-50:
+the cache is near-instant (memory-mapped). They depend on tables created by notebooks 20-40:
 ``ami_analysis``, ``customer_peer_groups``, ``peer_index`` and ``weather_features``.
 
 Conventions:

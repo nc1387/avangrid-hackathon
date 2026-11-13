@@ -99,7 +99,7 @@ def choose_k(Z: np.ndarray, ks=range(4, 13), sample: int = 6000, seed: int = 0) 
 
 def name_clusters(X: np.ndarray, labels: np.ndarray) -> dict[int, str]:
     """Name clusters from their median features, greedily in a fixed order, so names don't depend on
-    k-means' arbitrary cluster numbering. Assumes 8 clusters (as chosen in scripts/segmentation.py)."""
+    k-means' arbitrary cluster numbering. Assumes 8 clusters (as chosen in notebook 70)."""
     f = {name: i for i, name in enumerate(FEATURES)}
     med = {c: np.nanmedian(X[labels == c], axis=0) for c in np.unique(labels)}
     left = set(med)

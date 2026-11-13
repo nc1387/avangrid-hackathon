@@ -273,7 +273,7 @@ RULES = {
     # customers on none of the lists: for each rule, the threshold that catches the most simulated
     # appliances while flagging no more than a plausible share of ordinary customers (water heater 15%,
     # pool and hot tub 4%, EV Level 1 and Level 2 2% each, battery 2% of solar homes). See
-    # scripts/appliance_calibration.py. A morning water-heater "spike" is already
+    # notebook 60 (calibration). A morning water-heater "spike" is already
     # >= 2 kWh above the overnight base, so only the share of days matters for that rule.
     'electric_water_heater': [('wh_morning_share', 0.15)],
     'pool': [('pool_day_floor_jump', 0.10), ('pool_day_night_jump', 0.30)],

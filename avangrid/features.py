@@ -1,6 +1,6 @@
 """Feature building: weather adjustment, daily peer-relative signals, and features for any date range.
 
-The daily signals and period features match the definitions developed for notebook 60, so
+The daily signals and period features match the definitions developed in notebook 45, so
 the notebooks and this package agree.
 
 Typical use::

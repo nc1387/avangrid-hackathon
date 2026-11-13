@@ -3,7 +3,7 @@
     python -m avangrid cache-build            # build (or refresh) the hourly and daily caches
     python -m avangrid cache-info             # list cached items and sizes
     python -m avangrid cache-clear            # delete the cache (rebuilt on next use)
-    python -m avangrid run 50_usage-stabilization.ipynb [more.ipynb ...]
+    python -m avangrid run 70_segmentation.ipynb [more.ipynb ...]
     python -m avangrid benchmark              # time parallel vs sequential PU training
     python -m avangrid status-build           # create/refresh the customer_status table
 """
