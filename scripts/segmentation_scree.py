@@ -44,7 +44,7 @@ def fit_standardizer(X):
     Xc = np.clip(X, lo, hi)
     med = np.nanmedian(Xc, axis=0)
     spread = np.nanpercentile(Xc, 75, axis=0) - np.nanpercentile(Xc, 25, axis=0)
-    spread = np.where(spread > 0, spread, np.nanstd(Xc, axis=0) + 1e-9)
+    spread = np.where(spread > 0.25 * np.nanstd(Xc, axis=0), spread, np.nanstd(Xc, axis=0) + 1e-9)
     return lo, hi, med, spread
 
 
@@ -62,7 +62,7 @@ def vaf(Z, centers):
     return 1 - within / total
 
 
-# The 188 minimal-use customers (cluster == K_CHOSEN) were added after clustering; leave them out.
+# The minimal-use customers (cluster == K_CHOSEN) were added after clustering; leave them out.
 s = db.sql('SELECT * FROM customer_segments ORDER BY CUSTOMER_NUMBER').filter(pl.col('cluster') < K_CHOSEN)
 X = s.select(seg.FEATURES).to_numpy().astype(float)
 
@@ -117,12 +117,14 @@ ax1.legend(frameon=False, loc='upper left', fontsize=9)
 
 ax2.plot(kc['k'], kc['stability_ari'], color=TRAIN, markerfacecolor=TRAIN, **dot)
 a8 = kc.filter(pl.col('k') == K_CHOSEN)['stability_ari'][0]
+# First k above the chosen one where runs from different random starts stop agreeing.
+k_unstable = int(kc.filter((pl.col('k') > K_CHOSEN) & (pl.col('stability_ari') < 0.9))['k'].min())
 ax2.plot(K_CHOSEN, a8, marker='o', markersize=11, markerfacecolor='none', markeredgecolor=TEXT,
          markeredgewidth=1.5, zorder=4)
 ax2.annotate(f'k = {K_CHOSEN}: {a8:.2f}', xy=(K_CHOSEN, a8), xytext=(K_CHOSEN - 3.2, 0.7),
              fontsize=9, color=TEXT, arrowprops=dict(arrowstyle='-', color=TEXT2, linewidth=1))
-ax2.annotate('Unstable from k = 10', xy=(10, kc.filter(pl.col('k') == 10)['stability_ari'][0]),
-             xytext=(10.4, 0.5), fontsize=9, color=TEXT2,
+ax2.annotate(f'Unstable from k = {k_unstable}', xy=(k_unstable, kc.filter(pl.col('k') == k_unstable)['stability_ari'][0]),
+             xytext=(k_unstable + 0.4, 0.5), fontsize=9, color=TEXT2,
              arrowprops=dict(arrowstyle='-', color=TEXT2, linewidth=1))
 ax2.set_title('Stability across random starts (adjusted Rand index)', loc='left', fontsize=11, color=TEXT)
 ax2.set_xlabel('Number of clusters (k)')
@@ -141,7 +143,7 @@ gap = float(res['train_minus_test'].abs().max())
 fig.suptitle(f'Choosing the number of customer segments ({s.height:,} customers, {len(seg.FEATURES)} features)',
              x=0.01, ha='left', fontsize=12, color=TEXT)
 fig.text(0.01, 0.005, f'Held-out VAF stays within {gap * 100:.1f} percentage points of training VAF at every k '
-         '(no sign of overfitting). Stability collapses at k = 10, so k = 8 sits in the stable range.',
+         f'(no sign of overfitting). Stability collapses at k = {k_unstable}, so k = {K_CHOSEN} is the largest stable choice.',
          fontsize=8.5, color=TEXT2)
 fig.tight_layout(rect=(0, 0.03, 1, 1))
 out = config.EDA_DIR / 'segmentation_scree.png'

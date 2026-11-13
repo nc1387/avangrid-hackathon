@@ -1,6 +1,6 @@
 # AMI Feature Inventory
 
-Every per-customer feature built from the hourly meter and weather data (24,968 customers, Sep 2025 – Aug 2026), how each is derived, and which analyses use it. Times are clock times; the data's hour_ending 1 is 12–1 am.
+Every per-customer feature built from the hourly meter and weather data (33,310 customers, Sep 2025 – Aug 2026), how each is derived, and which analyses use it. Times are clock times; the data's hour_ending 1 is 12–1 am.
 
 **Legend:** ● used in the final version · ○ tested in a model comparison, not kept · — not used
 

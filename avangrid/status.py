@@ -8,8 +8,7 @@ Customers are excluded at these stages, in order:
 
 | status                     | meaning                                                                          |
 |----------------------------|----------------------------------------------------------------------------------|
-| disregarded folder         | numbered 10,001-20,000; that folder held duplicate data and was disregarded      |
-| no meter data              | outside that range but absent from the meter data entirely                      |
+| no meter data              | absent from the meter data entirely                                              |
 | dropped: incomplete        | in ``excluded_customers`` (joined late, left early, or a gap longer than 3 days) |
 | excluded: low usage        | in ``ami_analysis`` but averages under 0.05 kWh/hour, so left out of peer groups |
 | included                   | in ``customer_peer_groups``: used by notebooks 50 and 60 and the cached arrays   |
@@ -20,7 +19,7 @@ every ``ami_analysis`` customer.
 
 import polars as pl
 
-from . import config, db
+from . import db
 from .labels import load_customer_groups
 
 TOTAL_CUSTOMERS = 35_725  # customer numbers 1-35,725, per the data dictionary
@@ -43,13 +42,11 @@ lists AS (
 SELECT
     c.CUSTOMER_NUMBER,
     CASE
-        WHEN c.CUSTOMER_NUMBER BETWEEN {config.DISREGARDED_RANGE[0]} AND {config.DISREGARDED_RANGE[1]} THEN 'disregarded folder'
         WHEN a.CUSTOMER_NUMBER IS NULL THEN 'no meter data'
         WHEN e.CUSTOMER_NUMBER IS NOT NULL THEN 'dropped: incomplete'
         WHEN g.CUSTOMER_NUMBER IS NULL THEN 'excluded: low usage'
         ELSE 'included'
     END AS status,
-    c.CUSTOMER_NUMBER BETWEEN {config.DISREGARDED_RANGE[0]} AND {config.DISREGARDED_RANGE[1]} AS disregarded_folder,
     a.CUSTOMER_NUMBER IS NOT NULL AS in_ami,
     e.CUSTOMER_NUMBER IS NOT NULL AS dropped_incomplete,
     e.reason AS drop_reason,

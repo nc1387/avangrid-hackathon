@@ -23,9 +23,6 @@ RESULTS_DIR = DATA_DIR / 'results'  # outputs of long-running experiments
 # changeover day in this data (2025-11-02 and 2026-03-08).
 EXPECTED_ROWS = 8_758
 
-# Customers whose data folder Avangrid said to disregard (duplicate data).
-DISREGARDED_RANGE = (10_001, 20_000)
-
 # Customers averaging less than this (kWh per hour) are left out of peer-relative analysis:
 # dividing by an average near zero blows up tiny fluctuations.
 MIN_MEAN_KWH = 0.05

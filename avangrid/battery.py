@@ -105,10 +105,10 @@ def fill_missing(K: np.ndarray, dates: pl.Series, chunk: int = 4000) -> np.ndarr
 
 
 # Charging windows (hour_ending values; None = any off-peak hour). With the same window at every home
-# (all 24,968 customers, hybrid dispatch, 3 kW charging): 'midnight - 9 am' gave the largest cut in the
-# grid's 100 highest hours (21.2 MW) with the system peak ~0.6% higher (at 12-1 am, when everyone charges);
-# 'any off-peak' saved the most ($10.1M vs $9.6M) but moved the system peak to 3-4 pm; '11 pm - 7 am'
-# created a large midnight peak (+4%). Mixing windows across customers (see assign_windows) avoids
+# (all 33,310 customers, hybrid dispatch, 3 kW charging): 'midnight - 9 am' gave the largest cut in the
+# grid's 100 highest hours (28.4 MW) with the system peak ~0.8% higher (everyone charges at once);
+# 'any off-peak' saved the most ($13.7M vs $12.9M) but cut the grid's highest hours less (23.3 MW); '11 pm -
+# 7 am' raised the system peak 4.5%. Mixing windows across customers (see assign_windows) avoids
 # everyone charging at once.
 CHARGE_WINDOWS = {
     'Midnight - 9 am': (1, 2, 3, 4, 5, 6, 7, 8, 9),
@@ -420,7 +420,7 @@ def coordinate_windows(cmp: dict, peak_cap_kw: float | None = None, seed: int = 
     the shares x[group, window]: the sum over groups and windows of x times that group's hourly load if the
     whole group used that window. That makes it a linear program over x (groups x windows), solved twice: first
     the lowest achievable peak, then the most savings under the cap. Customers are then drawn at random within
-    each group in those shares; on all 24,968 customers the simulated peak and savings matched the linear
+    each group in those shares; on the earlier 24,968-customer run the simulated peak and savings matched the linear
     program's to within 0.05 MW and $0.01M.
 
     Needs compare_windows(..., segments=...). Returns window_of (per customer), shares (groups x windows),

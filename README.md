@@ -1,6 +1,6 @@
 # Avangrid AMI hackathon analysis
 
-Hourly smart-meter (AMI) data for about 25,000 customers, Sep 2025 – Aug 2026, analysed to
+Hourly smart-meter (AMI) data for about 33,000 customers, Sep 2025 – Aug 2026, analysed to
 identify customers with electric vehicles (EV), heat pumps (HP) and solar panels (PV).
 
 ## Notebooks
@@ -44,14 +44,13 @@ each was excluded:
 
 | `status` | Customers | Meaning |
 |---|---|---|
-| `included` | 24,968 | In `customer_peer_groups`: used from notebook 50 on and in the cached arrays |
-| `excluded: low usage` | 188 | Average under 0.05 kWh/hour; still in `ami_analysis` (notebooks 20–40) but not in peer groups |
-| `dropped: incomplete` | 497 | In `excluded_customers`; `drop_reason` is joined late, left early, or long gap mid-year |
-| `no meter data` | 72 | Outside the disregarded range but absent from the meter data |
-| `disregarded folder` | 10,000 | Numbered 10,001–20,000; that folder held duplicate data |
+| `included` | 33,310 | In `customer_peer_groups`: used from notebook 50 on and in the cached arrays |
+| `excluded: low usage` | 256 | Average under 0.05 kWh/hour; still in `ami_analysis` (notebooks 20–40) but not in peer groups |
+| `dropped: incomplete` | 672 | In `excluded_customers`; `drop_reason` is joined late, left early, or long gap mid-year |
+| `no meter data` | 1,487 | Absent from the meter data: 1,402 of them (18,152–18,346 and 18,747–19,953) are in the seven part files missing from the 10,001–20,000 folder |
 
 Other columns: `in_ami`, `in_ami_analysis`, `in_peer_groups`, `dropped_incomplete`, `low_usage`,
-`disregarded_folder`, `drop_reason`, `missing_hours_after_imputation`, `imputed_hours`, `peer_group`,
+`drop_reason`, `missing_hours_after_imputation`, `imputed_hours`, `peer_group`,
 and `on_ev_list` / `on_hp_list` / `on_pv_list`. Rebuild it with `python -m avangrid status-build`
 after re-running any of notebooks 10–50.
 

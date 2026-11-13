@@ -74,7 +74,10 @@ def robust_standardize(X: np.ndarray) -> np.ndarray:
     Xc = np.clip(X, lo, hi)
     med = np.nanmedian(Xc, axis=0)
     spread = np.nanpercentile(Xc, 75, axis=0) - np.nanpercentile(Xc, 25, axis=0)
-    spread = np.where(spread > 0, spread, np.nanstd(Xc, axis=0) + 1e-9)
+    # Fall back to the standard deviation when the interquartile range is degenerate: zero, or (for mostly-zero
+    # features such as solar_midday_zero_share) a sliver just above zero that would blow the feature up and let
+    # it dominate k-means. For ordinary features the IQR is about 1.0-1.35 standard deviations.
+    spread = np.where(spread > 0.25 * np.nanstd(Xc, axis=0), spread, np.nanstd(Xc, axis=0) + 1e-9)
     Z = (Xc - med) / spread
     return np.where(np.isnan(Z), 0.0, Z)
 

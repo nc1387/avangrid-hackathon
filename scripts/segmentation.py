@@ -2,10 +2,10 @@
 
 1. Behavioural clusters: k-means (k = 8) on avangrid.segmentation.FEATURES (size, daily shape, heating and
    cooling response, seasonality, grid-peak coincidence, load factor, variability, solar). k was chosen for
-   stability across random starts (adjusted Rand >= 0.98 up to k = 9, dropping sharply at 10) and
+   stability across random starts (adjusted Rand >= 0.97 for k = 4-8, dropping sharply at 9) and
    interpretability; silhouette is low (~0.14) at every k, as usual for household load data, which varies
    continuously rather than in crisp groups. Customers with too little use for peer-relative analysis
-   (188, average < 0.05 kWh/h) form a ninth group, "Minimal use / vacant".
+   (256, average < 0.05 kWh/h) form a ninth group, "Minimal use / vacant".
 2. Program segments (flags; a customer can be in several), defined from the appliance inventory and
    technology predictions:
      high_electrification   EV (listed, candidate list or Level 2 charging), primary electric heating,
@@ -79,7 +79,7 @@ segments = cust.with_columns(
     *[pl.Series(f, X[:, i]) for i, f in enumerate(seg.FEATURES)],
 )
 
-# The 188 near-zero customers (in ami_analysis, not in the peer groups / hourly arrays)
+# The near-zero customers (in ami_analysis, not in the peer groups / hourly arrays)
 low = db.sql('''SELECT CUSTOMER_NUMBER FROM ami_analysis GROUP BY 1
                 HAVING CUSTOMER_NUMBER NOT IN (SELECT CUSTOMER_NUMBER FROM customer_peer_groups)''')
 low = low.with_columns(pl.lit(K_CLUSTERS).cast(segments['cluster'].dtype).alias('cluster'),
