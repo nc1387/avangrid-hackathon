@@ -120,3 +120,71 @@ def name_clusters(X: np.ndarray, labels: np.ndarray) -> dict[int, str]:
     for c in left:
         names[c] = 'Daytime-active, AC'
     return names
+
+
+# ------------------------------------------------------------------------------------------------ mixed data
+# k-prototypes (Huang 1998): k-means for the continuous features and k-modes for the categorical ones, in one
+# objective. Distance from a customer to a cluster = squared Euclidean distance on the (standardized) continuous
+# features + gamma x the number of categorical variables on which the customer differs from the cluster's mode.
+# Means and modes are updated in turn, as in k-means, until no customer changes cluster.
+
+def kproto_distances(X: np.ndarray, C: np.ndarray, centers: np.ndarray, modes: np.ndarray,
+                     gamma: float) -> np.ndarray:
+    """customers x clusters distance: squared Euclidean on X + gamma x categorical mismatches of C."""
+    num = ((X[:, None, :] - centers[None, :, :]) ** 2).sum(2)
+    cat = (C[:, None, :] != modes[None, :, :]).sum(2)
+    return num + gamma * cat
+
+
+def _kproto_update(X, C, labels, k, n_levels):
+    centers = np.vstack([X[labels == j].mean(0) for j in range(k)])
+    modes = np.vstack([[np.bincount(C[labels == j, v], minlength=n_levels[v]).argmax() for v in range(C.shape[1])]
+                       for j in range(k)])
+    return centers, modes
+
+
+def kprototypes(X: np.ndarray, C: np.ndarray, k: int, gamma: float, n_init: int = 10, max_iter: int = 100,
+                seed: int = 0) -> dict:
+    """Cluster customers on continuous features X (customers x p, already standardized) and categorical
+    features C (customers x q, integer codes 0..levels-1). Returns the best of n_init runs (lowest cost):
+    {'labels', 'centers', 'modes', 'cost', 'num_cost', 'cat_cost', 'n_iter'}.
+
+    Each run starts from k customers chosen k-means++ style on the combined distance (each new seed drawn with
+    probability proportional to its distance from the nearest seed so far). A cluster that empties is
+    re-seeded with the customer farthest from its own cluster."""
+    X, C = np.asarray(X, float), np.asarray(C, np.int64)
+    n_levels = C.max(0) + 1
+    rng = np.random.default_rng(seed)
+    best = None
+    for _ in range(n_init):
+        idx = [int(rng.integers(len(X)))]
+        d = kproto_distances(X, C, X[idx], C[idx], gamma)[:, 0]
+        for _ in range(1, k):
+            idx.append(int(rng.choice(len(X), p=d / d.sum())))
+            d = np.minimum(d, kproto_distances(X, C, X[idx[-1:]], C[idx[-1:]], gamma)[:, 0])
+        centers, modes = X[idx].copy(), C[idx].copy()
+        labels = np.full(len(X), -1)
+        for it in range(max_iter):
+            D = kproto_distances(X, C, centers, modes, gamma)
+            new = D.argmin(1)
+            for j in set(range(k)) - set(np.unique(new)):          # re-seed empty clusters
+                far = int(D[np.arange(len(X)), new].argmax())
+                new[far] = j
+            if np.array_equal(new, labels):
+                break
+            labels = new
+            centers, modes = _kproto_update(X, C, labels, k, n_levels)
+        num = float(((X - centers[labels]) ** 2).sum())
+        cat = float((C != modes[labels]).sum())
+        cost = num + gamma * cat
+        if best is None or cost < best['cost']:
+            best = {'labels': labels, 'centers': centers, 'modes': modes, 'cost': cost, 'num_cost': num,
+                    'cat_cost': gamma * cat, 'n_iter': it + 1}
+    return best
+
+
+def kproto_total_cost(X: np.ndarray, C: np.ndarray, gamma: float) -> float:
+    """Cost with a single cluster (overall mean and mode): the baseline for 'share of cost explained'."""
+    X, C = np.asarray(X, float), np.asarray(C, np.int64)
+    modes = np.array([np.bincount(C[:, v]).argmax() for v in range(C.shape[1])])
+    return float(((X - X.mean(0)) ** 2).sum() + gamma * (C != modes).sum())

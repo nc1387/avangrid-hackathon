@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebuild everything from the raw meter data by running notebooks 10-90 in order. Stops at the first failure.
+# Rebuild everything from the raw meter data by running notebooks 10-95 in order. Stops at the first failure.
 #
 # Run from anywhere:
 #     scripts/rebuild_all.sh            # all notebooks
@@ -24,8 +24,11 @@ STEPS=(
   50_technology-models.ipynb
   60_appliances.ipynb
   70_segmentation.ipynb
+  75_segmentation-with-appliances.ipynb
   80_battery-opportunity.ipynb
+  85_peak-reduction-stack.ipynb
   90_usage-stabilization.ipynb
+  95_appliance-flag-associations.ipynb
 )
 # Not run: scripts/review_sample.py draws a new blind hand-labelling sample and overwrites the key of the
 # existing one (results/review_key.parquet), so run it only when starting a new review.

@@ -20,8 +20,11 @@ section: what was tested or dropped at that step, and why.
 | `50_technology-models` | **All long-running models**: PU method test on PV, then EV, HP and PV side by side in five rounds of feature comparisons; `technology_predictions` and candidate lists | **~2 h** |
 | `60_appliances` | Appliance rules calibrated with simulated appliances; `appliance_inventory` | <1 min |
 | `70_segmentation` | k-means behavioural clusters, program segments, VAF scree plot; `customer_segments` | ~1 min |
+| `75_segmentation-with-appliances` | Clusters on the same features **plus the appliance inventory** (categorical), with k-prototypes; compared with notebook 70; `customer_segments_mixed` | ~2 min |
 | `80_battery-opportunity` | Battery dispatch for every customer, coordinated charging windows; `battery_simulation` | <1 min |
+| `85_peak-reduction-stack` | Least-cost peak reduction: flexible loads found by the appliance flags (thermostats, pool pumps, water heaters, EV charging) ranked against batteries by cost per kW, by cluster; `peak_reduction_stack` | <1 min |
 | `90_usage-stabilization` | The rest of the stabilization analysis (not needed by the models); completes `customer_stability` | <1 min |
+| `95_appliance-flag-associations` | How well the appliance flags predict one another (correlation, lift, conditional odds, models), and injection tests of which rules confuse one load for another | <1 min |
 
 The notebooks and scripts these replaced (the first versions of notebooks 10–60 and the model, appliance,
 segmentation and battery scripts) are in `archive/` for reference; they aren't kept working.
@@ -45,6 +48,7 @@ from avangrid import config, db, grids, features, stability, pu, labels, cache
 | `features` | `load_daily_signals()` (**cached**), `PeriodFeatures` for any date range, `remove_weather()`, `customer_features()` |
 | `stability` | `row_corr`, `window_r` (stabilization comparisons), `change_scan`, `step_scan`, `tech_change_points` |
 | `pu` | `bagging_pu` (**parallel**), `elkan_noto`, `evaluate_feature_sets` for hidden-label tests |
+| `segmentation` | Segmentation features, `robust_standardize`, `choose_k`, `name_clusters`; `kprototypes` for continuous + categorical data |
 | `status` | `build_customer_status()`: the `customer_status` table (see below) |
 
 ### Which customers are in the analysis: `customer_status`
