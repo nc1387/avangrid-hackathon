@@ -2,22 +2,24 @@
 
 Every per-customer feature built from the hourly meter and weather data (33,310 customers, Sep 2025 – Aug 2026), how each is derived, and which analyses use it. Times are clock times; the data's hour_ending 1 is 12–1 am.
 
+Markers reflect the models chosen in the 13 Nov 2026 run (notebook 50).
+
 **Legend:** ● used in the final version · ○ tested in a model comparison, not kept · — not used
 
 ## At a glance
 
 | Feature family | Features | EV | HP | PV | Appliance rules | Clustering | Source |
 |---|---|---|---|---|---|---|---|
-| Whole-year usage profile | 23 | ● | ● | ● | — | — | `notebook 40 · customer_features.py` |
-| Appliance evidence | 21 | ● | ● | — | ● (14) | ● (3) | `appliances.py` |
+| Whole-year usage profile | 23 | ● | ● (14) | ● | — | — | `notebook 40 · customer_features.py` |
+| Appliance evidence | 21 | ● | ● (12) | — | ● (14) | ● (3) | `appliances.py` |
 | Heat-pump physics | 9 | — | ● | — | — | — | `physics.py` |
 | EV night model (per night) | 14 | ● | — | — | — | — | `ev_nights.py` |
 | Solar index signature | 3 | ○ | ○ | ● | — | — | `signatures.py` |
 | Charging-block signature | 6 | ○ | ○ | ● | — | — | `signatures.py` |
 | Cold-response signature | 6 | ○ | ○ | ● | — | — | `signatures.py` |
-| Peak load | 15 | ○ | ● | ● | — | ● (2) | `signatures.py` |
-| Peer-relative, full year | 15 | ○ | ○ | ○ | — | — | `notebook 50/60 · features.py` |
-| Mid-year change | 9 | ○ | ○ | ○ | — | — | `notebook 60 · stability.py` |
+| Peak load | 15 | ○ | ● | ○ | — | ● (2) | `signatures.py` |
+| Peer-relative, full year | 15 | ○ | ○ | ● | — | — | `notebooks 40, 45 · features.py` |
+| Mid-year change | 9 | ○ | ○ | ● | — | — | `notebook 45 · stability.py` |
 | Segmentation | 11 | — | — | — | — | ● | `segmentation.py` |
 | **All families** | **132** | | | | | | |
 
@@ -31,24 +33,24 @@ Size, timing, solar and high-power counts, and simple weather slopes, over the f
 
 | Feature | How it is derived | EV | HP | PV | Appliance rules | Clustering |
 |---|---|---|---|---|---|---|
-| `mean_kwh` | Average hourly kWh over the year. | ● | ● | ● | — | — |
-| `p95_kwh` | 95th percentile of hourly kWh. | ● | ● | ● | — | — |
-| `max_kwh` | Highest single hour of the year. | ● | ● | ● | — | — |
+| `mean_kwh` | Average hourly kWh over the year. | ● | ○ | ● | — | — |
+| `p95_kwh` | 95th percentile of hourly kWh. | ● | ○ | ● | — | — |
+| `max_kwh` | Highest single hour of the year. | ● | ○ | ● | — | — |
 | `winter_summer_ratio` | Average use in Dec–Feb divided by average use in Jun–Aug. | ● | ● | ● | — | — |
 | `cold_night_ratio` | Night (12–6 am) use in the coldest temperature quartile divided by night use in the third quartile. | ● | ● | ● | — | — |
 | `summer_midday_zero_share` | Share of Apr–Sep hours from 10 am to 3 pm with use under 0.05 kWh (solar covering the home). | ● | ● | ● | — | — |
-| `summer_midday_kwh` | Average kWh from 10 am to 3 pm in Apr–Sep. | ● | ● | ● | — | — |
-| `summer_night_kwh` | Average kWh from 12 to 6 am in Apr–Sep. | ● | ● | ● | — | — |
-| `winter_midday_kwh` | Average kWh from 10 am to 3 pm in Nov–Jan. | ● | ● | ● | — | — |
+| `summer_midday_kwh` | Average kWh from 10 am to 3 pm in Apr–Sep. | ● | ○ | ● | — | — |
+| `summer_night_kwh` | Average kWh from 12 to 6 am in Apr–Sep. | ● | ○ | ● | — | — |
+| `winter_midday_kwh` | Average kWh from 10 am to 3 pm in Nov–Jan. | ● | ○ | ● | — | — |
 | `night_share`<br>`morning_share`<br>`afternoon_share`<br>`evening_share` | Average use in each 6-hour block (from midnight) divided by the overall average. | ● | ● | ● | — | — |
 | `summer_midday_night_ratio` | summer_midday_kwh divided by summer_night_kwh. | ● | ● | ● | — | — |
 | `midday_summer_winter_ratio` | summer_midday_kwh divided by winter_midday_kwh. | ● | ● | ● | — | — |
 | `high_sessions` | Number of runs of hours at least 3 kWh above the customer’s median for that hour of day. | ● | ● | ● | — | — |
 | `share_high_hours` | Share of hours at least 3 kWh above that hour’s median. | ● | ● | ● | — | — |
 | `sharp_rises` | Number of hour-to-hour increases of 3 kWh or more. | ● | ● | ● | — | — |
-| `heating_slope` | Slope of daily kWh on heating degrees (55 °F base) over days below 55 °F. | ● | ● | ● | — | — |
-| `cooling_slope` | Slope of daily kWh on cooling degrees (65 °F base) over days above 65 °F. | ● | ● | ● | — | — |
-| `mild_day_kwh` | Average daily kWh on 55–65 °F days. | ● | ● | ● | — | — |
+| `heating_slope` | Slope of daily kWh on heating degrees (55 °F base) over days below 55 °F. | ● | ○ | ● | — | — |
+| `cooling_slope` | Slope of daily kWh on cooling degrees (65 °F base) over days above 65 °F. | ● | ○ | ● | — | — |
+| `mild_day_kwh` | Average daily kWh on 55–65 °F days. | ● | ○ | ● | — | — |
 | `heating_slope_rel`<br>`cooling_slope_rel` | heating_slope and cooling_slope divided by mild_day_kwh. | ● | ● | ● | — | — |
 
 ### Appliance evidence (21)
@@ -57,27 +59,27 @@ Evidence features behind the appliance rules; all of them also feed the EV and H
 
 | Feature | How it is derived | EV | HP | PV | Appliance rules | Clustering |
 |---|---|---|---|---|---|---|
-| `ac_slope` | Daily kWh per cooling degree above 65 °F, fitted on days averaging 55 °F or more with a weekend term. | ● | ● | — | — | — |
+| `ac_slope` | Daily kWh per cooling degree above 65 °F, fitted on days averaging 55 °F or more with a weekend term. | ● | ○ | — | — | — |
 | `ac_t` | t-statistic of ac_slope. | ● | ● | — | ● | — |
 | `ac_share` | Share of Jun–Aug use explained by the cooling term. | ● | ● | — | ● | — |
-| `ac_added_kw` | Average kW from 2 to 7 pm on days of 80 °F or more, minus the same on 60–68 °F days; also splits central from room AC. | ● | ● | — | ● | ● |
-| `heat_slope` | Nov–Mar slope of daily-use anomalies (each day minus its 15-day centered mean) on heating-degree anomalies. | ● | ● | — | — | — |
+| `ac_added_kw` | Average kW from 2 to 7 pm on days of 80 °F or more, minus the same on 60–68 °F days; also splits central from room AC. | ● | ○ | — | ● | ● |
+| `heat_slope` | Nov–Mar slope of daily-use anomalies (each day minus its 15-day centered mean) on heating-degree anomalies. | ● | ○ | — | — | — |
 | `heat_t` | t-statistic of heat_slope. | ● | ● | — | ● | — |
-| `heat_kw_at_20f` | heat_slope × 35 ÷ 24: the average extra kW on a 20 °F day. | ● | ● | — | ● | ● |
+| `heat_kw_at_20f` | heat_slope × 35 ÷ 24: the average extra kW on a 20 °F day. | ● | ○ | — | ● | ● |
 | `heat_share` | Share of Dec–Feb use explained by heating. | ● | ● | — | — | — |
-| `heat_added_kw` | Average kW on days below 25 °F minus on 55–65 °F days. | ● | ● | — | — | — |
+| `heat_added_kw` | Average kW on days below 25 °F minus on 55–65 °F days. | ● | ○ | — | — | — |
 | `wh_morning_share` | On 55–70 °F days, share of days with an hour from 4 to 10 am at least 2 kWh above that night’s 12–5 am minimum. | ● | ● | — | ● | — |
 | `wh_evening_share` | The same as wh_morning_share for 4 to 10 pm. | ● | ● | — | — | — |
-| `wh_morning_kwh` | Median size of those morning spikes. | ● | ● | — | — | — |
-| `pool_day_floor_jump` | Minimum use from 9 am to noon on cool summer days, minus the same on mild spring and autumn days. | ● | ● | — | ● | — |
+| `wh_morning_kwh` | Median size of those morning spikes. | ● | ○ | — | — | — |
+| `pool_day_floor_jump` | Minimum use from 9 am to noon on cool summer days, minus the same on mild spring and autumn days. | ● | ○ | — | ● | — |
 | `pool_day_night_jump` | The same comparison for the gap between the mid-morning and overnight minimums. | ● | ● | — | ● | — |
 | `ev_l1_night_share` | Share of mild nights (42–65 °F) with 5+ consecutive hours 0.8–2.5 kWh above the customer’s quiet-night level. | ● | ● | — | ● | — |
-| `ev_l1_excess_kwh` | Median size of that Level-1-like excess. | ● | ● | — | — | — |
+| `ev_l1_excess_kwh` | Median size of that Level-1-like excess. | ● | ○ | — | — | — |
 | `ev_l2_night_share` | Share of mild nights with 2+ consecutive hours at least 3 kWh above the quiet-night level. | ● | ● | — | ● | — |
 | `hot_tub_night_share` | Share of mild nights with a 1–2 hour spike at least 1.5 kWh above that night’s minimum between midnight and 6 am. | ● | ● | — | ● | — |
 | `solar_midday_zero_share` | Share of Apr–Sep hours from 10 am to 3 pm under 0.05 kWh (same definition as summer_midday_zero_share). | ● | ● | — | ● | ● |
 | `battery_evening_zero_share` | Share of Apr–Sep days with at least 3 of the hours from 5 to 10 pm under 0.1 kWh. | ● | ● | — | ● | — |
-| `summer_morning_kwh` | Average kWh from 5 to 9 am in Apr–Sep, to rule out homes that are empty all summer. | ● | ● | — | ● | — |
+| `summer_morning_kwh` | Average kWh from 5 to 9 am in Apr–Sep, to rule out homes that are empty all summer. | ● | ○ | — | ● | — |
 
 ### Heat-pump physics (9)
 
@@ -149,44 +151,44 @@ How high, how often, when, and how coincident with the system peak each customer
 
 | Feature | How it is derived | EV | HP | PV | Appliance rules | Clustering |
 |---|---|---|---|---|---|---|
-| `peak_daily_rel` | Median of each day’s highest hour divided by the customer’s average hourly use. | ○ | ● | ● | — | — |
-| `peak_daily_rel_vs_peers` | peak_daily_rel minus the peer group’s median. | ○ | ● | ● | — | — |
-| `peak_daily_cv` | Day-to-day variation of the daily peak. | ○ | ● | ● | — | — |
-| `peak_winter_summer_ratio` | Median daily peak in Dec–Feb divided by Jun–Aug. | ○ | ● | ● | — | — |
-| `load_factor_annual` | Average hourly use divided by the highest hour of the year. | ○ | ● | ● | — | ● |
-| `load_factor_daily` | Median over days of daily average ÷ daily peak. | ○ | ● | ● | — | — |
-| `peak_hours_near_max` | Median hours per day within 80% of that day’s peak (broad vs spiky). | ○ | ● | ● | — | — |
-| `peak_share_night`<br>`peak_share_morning`<br>`peak_share_evening` | Share of daily peaks falling 12–6 am, 6–10 am and 4–10 pm. | ○ | ● | ● | — | — |
-| `peak_hour_concentration` | Largest share of daily peaks in any 3-hour window. | ○ | ● | ● | — | — |
-| `grid_peak_ratio` | Average use in the 100 highest system-load hours divided by own average use. | ○ | ● | ● | — | ● |
-| `grid_peak_ratio_winter`<br>`grid_peak_ratio_summer` | The same for the 50 highest system hours in Dec–Feb and in Jun–Aug. | ○ | ● | ● | — | — |
-| `grid_peak_kwh` | Average kWh in the 100 highest system-load hours (also defines the peak-contributor segment flag). | ○ | ● | ● | — | — |
+| `peak_daily_rel` | Median of each day’s highest hour divided by the customer’s average hourly use. | ○ | ● | ○ | — | — |
+| `peak_daily_rel_vs_peers` | peak_daily_rel minus the peer group’s median. | ○ | ● | ○ | — | — |
+| `peak_daily_cv` | Day-to-day variation of the daily peak. | ○ | ● | ○ | — | — |
+| `peak_winter_summer_ratio` | Median daily peak in Dec–Feb divided by Jun–Aug. | ○ | ● | ○ | — | — |
+| `load_factor_annual` | Average hourly use divided by the highest hour of the year. | ○ | ● | ○ | — | ● |
+| `load_factor_daily` | Median over days of daily average ÷ daily peak. | ○ | ● | ○ | — | — |
+| `peak_hours_near_max` | Median hours per day within 80% of that day’s peak (broad vs spiky). | ○ | ● | ○ | — | — |
+| `peak_share_night`<br>`peak_share_morning`<br>`peak_share_evening` | Share of daily peaks falling 12–6 am, 6–10 am and 4–10 pm. | ○ | ● | ○ | — | — |
+| `peak_hour_concentration` | Largest share of daily peaks in any 3-hour window. | ○ | ● | ○ | — | — |
+| `grid_peak_ratio` | Average use in the 100 highest system-load hours divided by own average use. | ○ | ● | ○ | — | ● |
+| `grid_peak_ratio_winter`<br>`grid_peak_ratio_summer` | The same for the 50 highest system hours in Dec–Feb and in Jun–Aug. | ○ | ● | ○ | — | — |
+| `grid_peak_kwh` | Average kWh in the 100 highest system-load hours (also defines the peak-contributor segment flag). | ○ | ● | ○ | — | — |
 
 ### Peer-relative, full year (15)
 
-Built on residuals: each hour’s use relative to the customer’s peer group (16 groups) after weather is removed. Source: `notebook 50/60 · features.py`.
+Built on residuals: each hour’s use relative to the customer’s peer group (16 groups) after weather is removed. Source: `notebooks 40, 45 · features.py`.
 
 | Feature | How it is derived | EV | HP | PV | Appliance rules | Clustering |
 |---|---|---|---|---|---|---|
-| `e_night`<br>`e_morning`<br>`e_afternoon`<br>`e_evening`<br>`e_midday`<br>`e_level` | Average residual in each time block, at midday (10 am–3 pm) and overall. | ○ | ○ | ○ | — | — |
-| `zero_mid_rel` | Daily share of midday hours under 0.05 kWh, minus the peer group’s daily average. | ○ | ○ | ○ | — | — |
-| `high_hours_rel`<br>`sessions_rel`<br>`sharp_rises_rel` | Daily counts of high hours (3+ kWh above that hour’s median), high-use session starts and 3+ kWh rises, minus peers. | ○ | ○ | ○ | — | — |
-| `dip_rel` | Midday ÷ night use ratio minus the peer group’s (more negative = deeper solar-like dip). | ○ | ○ | ○ | — | — |
-| `heat_slope_rel`<br>`cool_slope_rel` | Residual level per heating degree and per cooling degree. | ○ | ○ | ○ | — | — |
-| `cold_level_rel` | Average residual on days below 35 °F. | ○ | ○ | ○ | — | — |
-| `peer_log_mean_kwh` | Log of average hourly kWh, added to this set as a size term. | ○ | ○ | ○ | — | — |
+| `e_night`<br>`e_morning`<br>`e_afternoon`<br>`e_evening`<br>`e_midday`<br>`e_level` | Average residual in each time block, at midday (10 am–3 pm) and overall. | ○ | ○ | ● | — | — |
+| `zero_mid_rel` | Daily share of midday hours under 0.05 kWh, minus the peer group’s daily average. | ○ | ○ | ● | — | — |
+| `high_hours_rel`<br>`sessions_rel`<br>`sharp_rises_rel` | Daily counts of high hours (3+ kWh above that hour’s median), high-use session starts and 3+ kWh rises, minus peers. | ○ | ○ | ● | — | — |
+| `dip_rel` | Midday ÷ night use ratio minus the peer group’s (more negative = deeper solar-like dip). | ○ | ○ | ● | — | — |
+| `heat_slope_rel`<br>`cool_slope_rel` | Residual level per heating degree and per cooling degree. | ○ | ○ | ● | — | — |
+| `cold_level_rel` | Average residual on days below 35 °F. | ○ | ○ | ● | — | — |
+| `peer_log_mean_kwh` | Log of average hourly kWh, added to this set as a size term. | ○ | ○ | ● | — | — |
 
 ### Mid-year change (9)
 
-Looks for a lasting step in a technology-specific weekly signal after the customer’s pattern has settled. Source: `notebook 60 · stability.py`.
+Looks for a lasting step in a technology-specific weekly signal after the customer’s pattern has settled. Source: `notebook 45 · stability.py`.
 
 | Feature | How it is derived | EV | HP | PV | Appliance rules | Clustering |
 |---|---|---|---|---|---|---|
-| `ev_change_z`<br>`hp_change_z`<br>`pv_change_z` | Largest step-change z-score in a weekly signal: weather-adjusted evening and overnight excess (EV), midday dip (PV), overall residual level in cold weeks (HP). | ○ | ○ | ○ | — | — |
-| `ev_change_flag`<br>`hp_change_flag`<br>`pv_change_flag` | z-score above the 95th percentile of customers on no list. | ○ | ○ | ○ | — | — |
-| `current_<feature>` | Each peer-relative feature recomputed only for the weeks since the flagged change. | ○ | ○ | ○ | — | — |
-| `change_in_<feature>` | Current-period value minus the before-change value. | ○ | ○ | ○ | — | — |
-| `current_period_weeks` | Weeks since the flagged change. | ○ | ○ | ○ | — | — |
+| `ev_change_z`<br>`hp_change_z`<br>`pv_change_z` | Largest step-change z-score in a weekly signal: weather-adjusted evening and overnight excess (EV), midday dip (PV), overall residual level in cold weeks (HP). | ○ | ○ | ● | — | — |
+| `ev_change_flag`<br>`hp_change_flag`<br>`pv_change_flag` | z-score above the 95th percentile of customers on no list. | ○ | ○ | ● | — | — |
+| `current_<feature>` | Each peer-relative feature recomputed only for the weeks since the flagged change. | ○ | ○ | ● | — | — |
+| `change_in_<feature>` | Current-period value minus the before-change value. | ○ | ○ | ● | — | — |
+| `current_period_weeks` | Weeks since the flagged change. | ○ | ○ | ● | — | — |
 
 ### Segmentation (11)
 
@@ -206,8 +208,8 @@ Clustering also uses ac_added_kw, heat_kw_at_20f, solar_midday_zero_share, grid_
 ## What each column means
 
 - **EV.** Bagged positive-unlabeled gradient boosting on the whole-year profile plus appliance evidence, averaged (by percentile rank) with the night-by-night model.
-- **HP.** Bagged positive-unlabeled gradient boosting on the whole-year profile, peak load, appliance evidence and heat-pump physics.
-- **PV.** Bagged positive-unlabeled gradient boosting on the whole-year profile, all three signature groups and peak load. It uses notebook 40's SQL table of the whole-year features; EV and HP recompute the same definitions in NumPy.
+- **HP.** Bagged positive-unlabeled gradient boosting on the whole-year profile and appliance evidence without their absolute-size features (the size-free variant scored as well), plus peak load and heat-pump physics.
+- **PV.** Bagged positive-unlabeled gradient boosting on the whole-year profile, the peer-relative and mid-year change features (round 1's best set, within noise of the whole-year profile alone) and all three signature groups. Peak load was tested and not kept. It uses notebook 40's SQL table of the whole-year features; EV and HP recompute the same definitions in NumPy.
 - **Appliance rules.** Physics-based rules for AC, electric heating, water heater, pool, hot tub, EV Level 1 and 2, and solar + battery. Thresholds were set by adding simulated appliances to real homes and measuring how often each rule catches them. "Heat pump likely" also uses the HP model score.
 - **Clustering.** k-means with k = 8 on 14 robust-standardized features, which produce the named customer segments.
-- **Not covered.** Peer groups, time-of-day blocks and weather quartiles (notebooks 30 and 50) are building blocks for the features above, not features of their own.
+- **Not covered.** Peer groups, time-of-day blocks and weather quartiles (notebooks 30 and 40) are building blocks for the features above, not features of their own.

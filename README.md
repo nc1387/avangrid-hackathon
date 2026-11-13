@@ -12,16 +12,16 @@ section: what was tested or dropped at that step, and why.
 | Notebook | What it does | Run time |
 |---|---|---|
 | `00_setup` | How to replicate the folder structure and environment; checks package versions and the data | seconds |
-| `10_load-data` | Loads the meter CSVs with polars, data-quality checks, writes the `ami` and `weather` tables | ~1.5 min |
+| `10_load-data` | Loads the meter CSVs with polars, data-quality checks, writes the `ami` and `weather` tables | ~1 min |
 | `20_clean-data` | EV/HP/PV list coverage, imputes short gaps, drops still-incomplete customers (`ami_analysis` view) | seconds |
 | `30_time-of-day-and-weather` | Time of day and weather quartiles (`weather_features`), kWh box plots | ~1 min |
-| `40_customer-features` | Full-year features (`customer_features`), labels, peer groups and `peer_index`, cached arrays, `customer_status` | ~4 min |
-| `45_change-detection` | Stabilization length (`customer_stability`) and mid-year change detection (`change_points`), used as candidate features | ~10 min |
-| `50_technology-models` | **All long-running models**: PU method test on PV, then EV, HP and PV side by side in five rounds of feature comparisons; `technology_predictions` and candidate lists | **~2.5 h** |
+| `40_customer-features` | Full-year features (`customer_features`), labels, peer groups and `peer_index`, cached arrays, `customer_status` | ~1 min |
+| `45_change-detection` | Stabilization length (`customer_stability`) and mid-year change detection (`change_points`), used as candidate features | ~12 min |
+| `50_technology-models` | **All long-running models**: PU method test on PV, then EV, HP and PV side by side in five rounds of feature comparisons; `technology_predictions` and candidate lists | **~2 h** |
 | `60_appliances` | Appliance rules calibrated with simulated appliances; `appliance_inventory` | <1 min |
 | `70_segmentation` | k-means behavioural clusters, program segments, VAF scree plot; `customer_segments` | ~1 min |
 | `80_battery-opportunity` | Battery dispatch for every customer, coordinated charging windows; `battery_simulation` | <1 min |
-| `90_usage-stabilization` | The rest of the stabilization analysis (not needed by the models); completes `customer_stability` | ~2 min |
+| `90_usage-stabilization` | The rest of the stabilization analysis (not needed by the models); completes `customer_stability` | <1 min |
 
 The notebooks and scripts these replaced (the first versions of notebooks 10–60 and the model, appliance,
 segmentation and battery scripts) are in `archive/` for reference; they aren't kept working.

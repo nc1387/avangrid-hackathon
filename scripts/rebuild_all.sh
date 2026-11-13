@@ -8,7 +8,7 @@
 # Notebook 10 writes the raw meter data into avangrid.db only when the file doesn't exist yet, so to
 # pick up new or changed meter data, move the old onedrive-export/Data/avangrid.db aside first.
 # Stop anything that has avangrid.db open (notebooks, the battery web app) before running.
-# Notebook 50 holds every long-running model and takes about 2.5 hours; the rest take a few minutes each.
+# Notebook 50 holds every long-running model and takes about 2 hours; the rest take about 15 minutes together.
 # Each notebook is executed in place (outputs saved); its log goes to
 # onedrive-export/Data/results/rebuild_logs/<start time>/.
 
