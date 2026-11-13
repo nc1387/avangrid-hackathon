@@ -10,6 +10,7 @@ Run them in order from this folder. Each builds on tables saved in
 
 | Notebook | What it does |
 |---|---|
+| `00_setup` | How to replicate the folder structure and environment; checks package versions and the data |
 | `10_exploratory-data-analysis` | Loads the meter CSVs with polars, data-quality checks, writes the `ami` and `weather` tables |
 | `20_exploratory_data_analysis_p2` | EV/HP/PV list coverage, imputes short gaps, drops still-incomplete customers (`ami_analysis` view) |
 | `30_define-variables` | Time of day and weather quartiles (`weather_features`), kWh box plots |
@@ -117,7 +118,8 @@ For long experiments, write a script that saves its output with `cache.save_resu
 
 ## Setup
 
-Python 3.13 with the packages in `requirements.txt` (the versions used are noted there).
+Python 3.13 with the exact package versions in `requirements.txt` (`pip install -r requirements.txt`).
+`00_setup.ipynb` walks through a fresh setup: the data folder layout, installing, and checks.
 
 Notebooks and `python -m avangrid ...` commands run from this folder find the package
 automatically. A script saved elsewhere won't, because Python looks next to the script. Either
