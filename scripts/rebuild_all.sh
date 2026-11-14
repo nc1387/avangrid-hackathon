@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Rebuild everything from the raw meter data by running notebooks 10-95 in order. Stops at the first failure.
+# Rebuild everything from the raw meter data by running notebooks 10-99 in order;
+# the last one builds the Part 3 planner page (onedrive-export/Data/part3/index.html). Stops at the first failure.
 #
 # Run from anywhere:
 #     scripts/rebuild_all.sh            # all notebooks
@@ -7,7 +8,7 @@
 #
 # Notebook 10 writes the raw meter data into avangrid.db only when the file doesn't exist yet, so to
 # pick up new or changed meter data, move the old onedrive-export/Data/avangrid.db aside first.
-# Stop anything that has avangrid.db open (notebooks, the battery web app) before running.
+# Stop anything that has avangrid.db open (open notebooks, scripts) before running.
 # Notebook 50 holds every long-running model and takes about 2 hours; the rest take about 15 minutes together.
 # Each notebook is executed in place (outputs saved); its log goes to
 # onedrive-export/Data/results/rebuild_logs/<start time>/.
@@ -29,6 +30,7 @@ STEPS=(
   85_peak-reduction-stack.ipynb
   90_usage-stabilization.ipynb
   95_appliance-flag-associations.ipynb
+  99_build-planner.ipynb
 )
 # Not run: scripts/review_sample.py draws a new blind hand-labelling sample and overwrites the key of the
 # existing one (results/review_key.parquet), so run it only when starting a new review.
