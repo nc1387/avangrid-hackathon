@@ -1,6 +1,6 @@
 """Export the analysis results (Parts 1 and 2) and the real hourly loads for the Part 3 battery and flexibility pipeline.
 
-Run from the project folder after notebooks 10-70 (needs `technology_predictions`, `appliance_inventory`
+Run from the project folder after notebooks 10-70 (and 45 for the change flags) (needs `technology_predictions`, `appliance_inventory`
 and `customer_segments` in avangrid.db):
 
     python scripts/export_part3_inputs.py                 # every customer in the cached hourly arrays
@@ -11,7 +11,8 @@ Writes to onedrive-export/Data/part3/ (inside the git-ignored data folder: this 
     hourly_kwh.npy           float32, customers x hours (gaps filled the same way as the battery simulator)
     hours.csv                one row per column of hourly_kwh: timestamp, date, hour_ending, month, weekday, temp_f
     customers.csv            one row per row of hourly_kwh, in the same order: segment, program flags,
-                             appliance types and confidences, technology scores and list flags
+                             appliance types and confidences, technology scores, list flags and
+                             mid-year change flags (chg_*)
     manifest.json            counts, date range, column descriptions, source tables
 
 The Part 3 pipeline (scripts/run_part3.py) reads these instead of generating synthetic customers; the
@@ -43,7 +44,11 @@ INVENTORY_COLS = ['ac_confidence', 'ac_flag', 'ac_type', 'ac_added_kw',
                   'water_heater_confidence', 'water_heater_flag',
                   'pool_confidence', 'pool_flag', 'hot_tub_confidence', 'hot_tub_flag',
                   'ev_charging_type', 'ev_level2_confidence', 'ev_level1_confidence',
+                  'ev_l2_night_share', 'ev_l1_night_share',
                   'solar_battery_confidence', 'solar_battery_flag']
+# change_points (notebook 45): mid-year technology changes, used to flag new EVs and new solar.
+CHANGE_COLS = ['ev_change_date', 'ev_z', 'ev_flag', 'pv_change_date', 'pv_z', 'pv_flag',
+               'hp_change_date', 'hp_z', 'hp_flag']
 # technology_predictions: keep every score / percentile / listed column it has.
 TECH_PATTERNS = ('_score', '_percentile', '_listed', '_probability')
 
@@ -119,6 +124,12 @@ def main(argv=None):
         cols = [c for c in tp.columns if c.endswith(TECH_PATTERNS)]
         out = out.join(tp.select('CUSTOMER_NUMBER', *cols), on='CUSTOMER_NUMBER', how='left')
         sources['technology_predictions'] = tp.height
+    cp = _table('change_points')
+    if cp is not None:
+        picked = _pick(cp, CHANGE_COLS, 'change_points')
+        picked = picked.rename({c: f'chg_{c}' for c in picked.columns if c != 'CUSTOMER_NUMBER'})
+        out = out.join(picked, on='CUSTOMER_NUMBER', how='left')
+        sources['change_points'] = cp.height
     lab = hd.labels()
     out = out.with_columns(*[pl.Series(f'on_{t.lower()}_list', lab[t][rows]) for t in config.TECHS])
 
