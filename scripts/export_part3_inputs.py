@@ -105,7 +105,7 @@ def main(argv=None):
         'temp_f': hd.temp_hourly.reshape(-1).round(1),
     })
 
-    print('Joining Part 1 and Part 2 results...')
+    print('Joining customer appliance classification and customer segmentation results...')
     out = pl.DataFrame({'CUSTOMER_NUMBER': cust_nums,
                         'peer_group': hd.customers['peer_group'].to_numpy()[rows],
                         'annual_kwh': L.sum(1).round(1),

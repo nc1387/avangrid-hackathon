@@ -1,8 +1,8 @@
 # Part 3: demand flexibility and BTM battery planner
 
 `index.html` is the Part 3 front end: one self-contained page (React build, data embedded). Open it directly
-in a browser; no server needed. Tabs: Portfolio, Battery Program, Customer List, Scenario Analysis,
-Assumptions, Methodology.
+in a browser; no server needed. Tabs: Portfolio, Cluster Analysis, Battery Program, Customer List, Scenario
+Analysis, Assumptions.
 
 The committed page carries a **synthetic demonstration dataset** (800 customers) so it can be shared without
 the hackathon data. The banner at the top says so.
@@ -23,23 +23,35 @@ Open `onedrive-export/Data/part3/index.html`. The full run takes a few minutes f
 `--max-customers 3000` lists only the top 3,000 on the page (summary figures still cover everyone) for a
 smaller file.
 
-Assumptions (battery spec, 3 kVA screen, flexibility shares, rates, incentives, finance, score weights) are in
+Assumptions (battery spec, 3 kVA screen, flexibility shares, rates, finance, adoption, score weights) are in
 `config/part3_assumptions.json`.
 
 **Cluster Analysis tab** (second from the left): notebook 70's eight behavioural clusters, with a short description,
 size and share of customers, battery candidates, the average of each home's median and 95th percentile hourly kWh over
 the year, the cluster's combined peak in summer and winter (its homes' load added up, averaged over the season's 20
 highest system days, as in the Portfolio tab's peak-day chart, at the highest hour; today's load, before flexibility
-or batteries), and the share of homes flagged for each appliance (Part 1 inventory). Built by `cluster_summary` in
+or batteries), and the share of homes flagged for each appliance (customer appliance classification). Built by `cluster_summary` in
 `scripts/run_part3.py`.
 
-**Adoption (Portfolio tab).** The peak-day chart has a third, dashed line: the system load if only some customers take
-part (`adoption` in the config). 20% of the fleet's homes take a battery, drawn at random with each home's chance
-weighted by its year-1 battery savings, and are dispatched as their own fleet; 50% of the homes offered flexibility
-enroll, drawn at random. A fixed seed keeps the draw the same on every run. The other line shows 100% adoption. The
-top line's avoided capacity value (relief at the binding season's peak hours × $/kW-yr) and upfront investment
-(battery hardware + installation) are for the adopting homes and follow the Assumptions tab. The Scenario Analysis
-tab starts at the same 20% and 50%.
+**Adopter groups.** A battery candidate whose year-1 battery bill savings exceed the likely adoption threshold ($100
+a year) is a **likely adopter**; the rest are **less likely adopters** (`adoption` in the config). The Battery Program
+tab plots every candidate's year-1 savings (customer's perspective) against its projected peak reduction, with dotted
+lines at the likely adoption threshold and at the 0.5 kW battery candidate threshold (`screening.min_battery_cp_kw`,
+a number we set). The Customer List tags each candidate with its group. The threshold and each group's acceptance rate
+(40% and 20%) are set on the Scenario Analysis tab, and changing the threshold moves the line and the tags.
+
+**Adoption (Portfolio tab).** The peak-day chart has a third, dashed line: the system load at expected adoption, the
+average of 100 random runs with a fixed seed. In each run every candidate takes a battery with its group's
+probability (the adopters are dispatched as their own fleet), and each home offered flexibility enrolls with
+probability 50%. The other line shows 100% adoption. The top line's upfront investment (battery hardware +
+installation) and Project NPV (the avoided capacity value at the binding season's peak hours, × $/kW-yr, over the
+battery life at the discount rate, declining with degradation, less the upfront investment) are for expected adoption
+and follow the Assumptions tab. The Portfolio figures use the config's threshold and rates; the Scenario Analysis
+sliders don't change them.
+
+**Removed:** the performance incentive (set to 0 in the config and dropped from the Assumptions tab), the separate
+"Enroll existing battery" action and program, the IRR and rebate columns, the rebate figures on the Portfolio and
+Battery Program tabs, and the Methodology tab.
 
 **Scenario Analysis inputs** (`scenario_inputs` in the summary) are measured over every customer, not just those
 listed on the page: today's load at the binding season's peak hours, the peak-hour load a new heat pump or EV adds
@@ -65,7 +77,7 @@ rates with that utility's residential time-varying rate from `data/tariffs/resid
 Day/Night rate, SC 8, since its time-of-use rate needs 35,000 kWh a year). Delivery and supply are combined: the
 page's supply price is the rate's off-peak supply, and on- and off-peak prices carry the rest, so every hour's
 total matches the utility's rate. Notebook 99 builds one page per utility into `onedrive-export/Data/part3/<utility>/`
-and a starting page, `onedrive-export/Data/part3/index.html`, with a drop-down to switch between them (NYSEG is shown first). The Methodology tab documents each step and formula.
+and a starting page, `onedrive-export/Data/part3/index.html`, with a drop-down to switch between them (NYSEG is shown first).
 
 ## Part 1 and 2 fields used
 

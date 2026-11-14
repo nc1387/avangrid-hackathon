@@ -640,44 +640,92 @@ def scenario_inputs(P, cp, recs, binding):
 
 
 def adoption_scenario(S, L_all, adays, ahrs, fx_rows, fx_dF, fleet_ctx, batt_sav, actionable, cal, cfg, td, cp_bind):
-    """System load if only some customers take part, for the Portfolio tab's third line.
+    """System load if only some customers take part, for the Portfolio tab: the average of `runs` random draws.
 
-    Batteries: `battery_share` of the fleet's homes, drawn at random without replacement, with each home's chance
-    weighted by its year-1 battery savings (+$1, so homes with no savings can still be drawn). They are re-dispatched
-    as their own fleet (fleet_dispatch) and use flexibility too, as their battery sizing assumes. Flexibility:
-    `flex_share` of the homes offered flexibility, drawn uniformly at random. Both draws use `seed`, so the result is
-    the same on every run. Computed on the hours of `adays`; the peak is the highest of those hours (the 60 highest
-    days and the peak-hour days, where the annual peak falls)."""
-    a = cfg['adoption']
+    In each run every fleet home takes a battery with probability `likely_rate` if its year-1 battery savings exceed
+    `likely_threshold` (a likely adopter) and `less_likely_rate` otherwise; the adopters are dispatched as their own
+    fleet (fleet_day_lp on the fleet's totals) and use flexibility too, as their battery sizing assumes. Every other
+    home offered flexibility enrolls with probability `flex_share`. The draws use `seed`, so results are the same on
+    every run. Computed on the hours of `adays` (each season's top days, the peak-hour days and the 60 highest days,
+    where the annual peak falls)."""
+    a, b = cfg['adoption'], cfg['battery']
+    eff = b['round_trip_eff']
     rng = np.random.default_rng(a.get('seed', 0))
     cand, sel, Lf_c, units_c = fleet_ctx['cand'], fleet_ctx['sel'], fleet_ctx['Lf_c'], fleet_ctx['units_c']
-    w = np.maximum(batt_sav[cand[sel]], 0) + 1.0
-    k_b = int(round(a['battery_share'] * len(sel)))
-    b_sel = np.sort(sel[rng.choice(len(sel), k_b, replace=False, p=w / w.sum())])   # positions in cand
-    b_rows = cand[b_sel]
+    rows_b = cand[sel]                                    # ascending: sel and cand are sorted
+    likely = batt_sav[rows_b] > a['likely_threshold']
+    p_b = np.where(likely, a['likely_rate'], a['less_likely_rate'])
     flex_rows, dF = np.concatenate(fx_rows), np.concatenate(fx_dF)
     keep = actionable[flex_rows]                          # homes offered flexibility in the final plan
     flex_rows, dF = flex_rows[keep], dF[keep]
-    k_f = int(round(a['flex_share'] * len(flex_rows)))
-    f_mask = np.zeros(len(flex_rows), bool)
-    f_mask[rng.choice(len(flex_rows), k_f, replace=False)] = True
-    S_a = S[ahrs] + dF[f_mask & ~np.isin(flex_rows, b_rows)].sum(0, dtype=np.float64)
-    L_b = np.asarray(L_all[b_rows], dtype=np.float64)[:, ahrs]
-    base = S.copy()                                      # the adopting fleet's LP only matters on these hours
-    base[ahrs] = S_a + (Lf_c[b_sel][:, ahrs] - L_b).sum(0)
-    net_b, _ = fleet_dispatch(base, Lf_c, units_c, b_sel, cal, cfg) if k_b else (np.zeros((0, len(S))), None)
-    S_a = S_a + (net_b[:, ahrs] - L_b).sum(0)
-    Sd_a = S_a.reshape(len(adays), 24)
-    pos = {s: np.searchsorted(adays, td[s]) for s in td}
+    nb, nh, nd = len(sel), len(ahrs), len(adays)
+    dB = np.empty((nb, nh), np.float32)                   # battery homes' own flexibility (post-flex minus today)
+    avail = np.empty((nb, nh), np.float32)                # what each can discharge: its own load, up to its kW
+    for k in range(0, nb, 1000):
+        j = sel[k:k + 1000]
+        Lf = Lf_c[j][:, ahrs].astype(np.float64)
+        dB[k:k + len(j)] = Lf - np.asarray(L_all[cand[j]], dtype=np.float64)[:, ahrs]
+        avail[k:k + len(j)] = np.minimum(np.maximum(Lf, 0), (units_c[j] * b['unit_kw'])[:, None])
+    u_b = units_c[sel]
+    usable = u_b * b['unit_kwh'] * (1 - b['reserve_soc'])
+    in_fleet = np.isin(flex_rows, rows_b)
+    fpos = np.searchsorted(rows_b, flex_rows[in_fleet])
     cp_pos = np.searchsorted(adays, cp_bind // 24) * 24 + cp_bind % 24
-    u_b = units_c[b_sel]
-    return {'battery_share': a['battery_share'], 'flex_share': a['flex_share'], 'seed': a.get('seed', 0),
-            'eligible_battery_homes': int(len(sel)), 'eligible_flex_homes': int(len(flex_rows)),
-            'battery_homes': int(k_b), 'battery_units': int(u_b.sum()), 'flex_homes': int(f_mask.sum()),
-            'flex_homes_with_battery': int((f_mask & np.isin(flex_rows, b_rows)).sum()),
-            'peak_mw_after': round(float(S_a.max()) / 1000, 3),
-            'cp_relief_mw': round(float((S[cp_bind] - S_a[cp_pos]).mean()) / 1000, 3),
-            **{f'profile_{s}': (Sd_a[pos[s]].mean(0) / 1000).round(3).tolist() for s in td}}
+    S0 = S[ahrs]
+    runs = int(a.get('runs', 100))
+    acc = np.zeros(nh)
+    out = {k: [] for k in ('peak', 'relief', 'homes', 'units', 'likely', 'flex')}
+    for _ in range(runs):
+        bm = rng.random(nb) < p_b
+        fm = rng.random(len(flex_rows)) < a['flex_share']
+        f_only = fm.copy()
+        f_only[in_fleet] &= ~bm[fpos]                    # battery adopters' flexibility is counted with them
+        Sr = S0 + f_only.astype(np.float32) @ dF + bm.astype(np.float32) @ dB
+        if bm.any():
+            A = (bm.astype(np.float32) @ avail).reshape(nd, 24)
+            E = float(usable[bm].sum())
+            C = b['grid_charge_cap_kw'] * E / float(usable[bm].max())
+            Sd_r = Sr.reshape(nd, 24)
+            for d in range(nd):
+                c, dis, _ = fleet_day_lp(Sd_r[d], A[d], E, C, eff)
+                Sd_r[d] = Sd_r[d] - dis + c
+        acc += Sr
+        out['peak'].append(Sr.max())
+        out['relief'].append((S[cp_bind] - Sr[cp_pos]).mean())
+        out['homes'].append(bm.sum())
+        out['units'].append(u_b[bm].sum())
+        out['likely'].append((bm & likely).sum())
+        out['flex'].append(fm.sum())
+    Sm = (acc / runs).reshape(nd, 24)
+    pos = {s_: np.searchsorted(adays, td[s_]) for s_ in td}
+    pk, rl = np.array(out['peak']) / 1000, np.array(out['relief']) / 1000
+    return {'runs': runs, 'seed': a.get('seed', 0), 'likely_rate': a['likely_rate'],
+            'less_likely_rate': a['less_likely_rate'], 'likely_threshold': a['likely_threshold'],
+            'flex_share': a['flex_share'],
+            'eligible_battery_homes': int(nb), 'likely_homes': int(likely.sum()),
+            'less_likely_homes': int((~likely).sum()), 'eligible_flex_homes': int(len(flex_rows)),
+            'battery_homes': round(float(np.mean(out['homes'])), 1), 'battery_units': round(float(np.mean(out['units'])), 1),
+            'likely_adopters': round(float(np.mean(out['likely'])), 1), 'flex_homes': round(float(np.mean(out['flex'])), 1),
+            'peak_mw_after': round(float(pk.mean()), 3), 'peak_mw_p5': round(float(np.percentile(pk, 5)), 3),
+            'peak_mw_p95': round(float(np.percentile(pk, 95)), 3),
+            'cp_relief_mw': round(float(rl.mean()), 3), 'cp_relief_mw_p5': round(float(np.percentile(rl, 5)), 3),
+            'cp_relief_mw_p95': round(float(np.percentile(rl, 95)), 3),
+            **{f'profile_{s_}': (Sm[pos[s_]].mean(0) / 1000).round(3).tolist() for s_ in td}}
+
+
+def battery_points(units, batt_sav, batt_kw, cfg):
+    """Every battery candidate's year-1 battery savings and peak-hour reduction, for the Battery Program scatter, and
+    where savings bunch for one- and two-unit homes."""
+    m = units > 0
+    pts = [[round(float(x), 1), round(float(y), 3), int(u)] for x, y, u in zip(batt_sav[m], batt_kw[m], units[m])]
+    modes = {}
+    for n in (1, 2):
+        v = np.round(batt_sav[m & (units == n)])
+        if len(v):
+            vals, cnt = np.unique(v, return_counts=True)
+            modes[f'mode_{n}'] = float(vals[cnt.argmax()])
+            modes[f'share_near_mode_{n}'] = round(float((np.abs(v - vals[cnt.argmax()]) <= 5).mean()), 3)
+    return {'points': pts, 'candidate_kw': cfg['screening']['min_battery_cp_kw'], **modes}
 
 
 # ---------------------------------------------------------------------------------------------- main run
@@ -786,10 +834,9 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
         rest1 = ex - fl - g1
         two = one & (((g2 - g1) >= sc['second_unit_min_gain_kw']) | ((rest1 > kva) & (ex - fl - g2 <= kva) & (g2 > g1)))
         units[two] = 2
-        act = np.where(storage & (ex >= 0), 'Enroll existing battery',
-              np.where(units > 0, np.where(solar, 'Solar + BESS ', np.where(has_lever, 'Flex + BESS ', 'BESS ')),
+        act = np.where(units > 0, np.where(solar, 'Solar + BESS ', np.where(has_lever, 'Flex + BESS ', 'BESS ')),
               np.where((ex >= min_need) & has_lever & (fl > 0.05), 'Flex only',
-              np.where(ex > 0, 'Monitor', 'No action'))))
+              np.where(ex > 0, 'Monitor', 'No action')))
         act = np.array([f'{x}{u}u' if x.endswith('BESS ') else x for x, u in zip(act, units)], object)
         action[rows] = act
         R['units'][rows] = units
@@ -1026,10 +1073,12 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
         for s_ in ('summer', 'winter'):
             summary['system_profile_mw'][s_]['adopted'] = ad.pop(f'profile_{s_}')
         summary['adoption'] = ad
-        print(f"  adoption: {ad['battery_homes']:,} battery homes ({ad['battery_share']:.0%} of the fleet), "
-              f"{ad['flex_homes']:,} flexibility homes ({ad['flex_share']:.0%}); peak {ad['peak_mw_after']:.2f} MW, "
-              f"{ad['cp_relief_mw']:.2f} MW off the {binding} peak hours  ({time.time() - t0:.0f}s)")
+        print(f"  adoption ({ad['runs']} runs): {ad['battery_homes']:,.0f} battery homes, {ad['flex_homes']:,.0f} "
+              f"flexibility homes on average; peak {ad['peak_mw_after']:.2f} MW ({ad['peak_mw_p5']:.2f}-"
+              f"{ad['peak_mw_p95']:.2f}), {ad['cp_relief_mw']:.2f} MW off the {binding} peak hours  "
+              f"({time.time() - t0:.0f}s)")
         del fleet_ctx, fx_dF
+    summary['battery_points'] = battery_points(units, batt_sav, batt_kw, cfg)
     summary['clusters'] = cluster_summary(cust, units, L_all, td, cal.D)
     recs.sort(key=lambda r: r['rank'])
     listed = recs
@@ -1041,7 +1090,7 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
     data = {
         'meta': {'generated': datetime.now().strftime('%Y-%m-%d %H:%M'), 'synthetic': bool(synthetic),
                  'n_customers': N, 'n_valid': N, 'n_listed': len(listed), 'runtime_s': round(time.time() - t0, 1),
-                 'inputs': 'Part 1 appliance inventory and technology scores, Part 2 segments, cleaned hourly loads',
+                 'inputs': 'Customer appliance classification (appliance inventory and technology scores), customer segmentation, cleaned hourly loads',
                  'tariff': eco.get('tariff')},
         'config': {'data': {'start_date': str(cal.date[0]), 'n_days': cal.D, 'max_customer_number': int(ids.max()),
                             'min_valid_share': 0.8}, **{k: v for k, v in cfg.items() if not k.startswith('_')}},
@@ -1101,18 +1150,20 @@ def build_summary(recs, P, R, cp, typical, windows, binding, S, S_flex, S_after,
     dr_mask = (df.p_ac >= 0.5) | (df.p_heat_pump >= 0.5)
     programs = [
         {'program': 'Battery storage', 'rule': 'units > 0', 'homes': int((df.units > 0).sum()), 'mw': mw(bk[df.units > 0]),
-         'channel': 'Channel assigned by the prioritization matrix'},
+         'channel': 'Offered to likely and less likely adopters (Battery Program tab)'},
         {'program': 'Managed EV charging', 'rule': 'EV detected', 'homes': int((df.ev_flag != '').sum()),
-         'mw': mw(lev.ev[df.ev_flag != '']), 'channel': 'Enrollment at EV purchase, charger rebate or via vehicle telematics'},
+         'mw': mw(lev.ev[df.ev_flag != '']),
+         'channel': (f"Charging is moved out of the peak hours, not slowed: {cfg['flex']['ev_shift_share']:.0%} of the "
+                     f"charging load (hours running {cfg['flex']['ev_spike_kw']} kW or more above the home's usual use) "
+                     'shifts to the overnight hours. Enrollment at EV purchase, or through the charger or the vehicle '
+                     '(telematics)')},
         {'program': 'Thermostat and heat pump DR', 'rule': 'AC or heat pump', 'homes': int(dr_mask.sum()),
          'mw': mw((lev.cooling + lev.heating)[dr_mask]), 'channel': 'Bring-your-own-thermostat enrollment'},
         {'program': 'Resistance heat to heat pump', 'rule': 'electric resistance heat', 'homes': int((df.p_resist_heat >= 0.5).sum()),
-         'mw': mw(df.hp_conv_kw), 'channel': 'Heat pump rebate with a winter peak adder'},
+         'mw': mw(df.hp_conv_kw), 'channel': 'Heat pump incentive with a winter peak adder'},
         {'program': 'Solar + storage', 'rule': 'solar and battery candidate',
          'homes': int(((df.p_solar >= 0.5) & (df.units > 0)).sum()), 'mw': mw(bk[(df.p_solar >= 0.5) & (df.units > 0)]),
          'channel': 'Offer at solar interconnection application'},
-        {'program': 'Enroll existing batteries', 'rule': 'solar + battery already',
-         'homes': int((df.action == 'Enroll existing battery').sum()), 'mw': 0.0, 'channel': 'Performance payments only; no new hardware'},
     ]
     # rebate cost-effective for both parties: breakeven <= value x relief x annuity
     rel_b = bk[df.units > 0]

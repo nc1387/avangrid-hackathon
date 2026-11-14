@@ -114,10 +114,10 @@
    }
   },
   "supply_rate": 0.12,
-  "incentive_summer_per_kw": 200,
-  "incentive_winter_per_kw": 25,
-  "incentive_summer_per_kw_late": 115,
-  "incentive_winter_per_kw_late": 15,
+  "incentive_summer_per_kw": 0,
+  "incentive_winter_per_kw": 0,
+  "incentive_summer_per_kw_late": 0,
+  "incentive_winter_per_kw_late": 0,
   "avoided_capacity_per_kw_yr": 100,
   "service_upgrade_cost": 6000
  },
@@ -147,10 +147,13 @@
   "_note": "Dispatch batteries as one fleet to minimize the system peak, and size the fleet at the knee of the peak-versus-size curve: the smallest fleet within knee_share of the best achievable peak reduction, on the curve_days highest days. Set optimize to false for per-home dispatch."
  },
   "adoption": {
-    "battery_share": 0.2,
+    "likely_rate": 0.4,
+    "less_likely_rate": 0.2,
+    "likely_threshold": 100,
     "flex_share": 0.5,
+    "runs": 100,
     "seed": 2026,
-    "_note": "Portfolio tab's adoption line and the Scenario Analysis defaults: battery_share of the fleet's homes take a battery (drawn at random, weighted by year-1 battery savings) and flex_share of the homes offered flexibility enroll (drawn at random). The seed keeps the draw the same on every run."
+    "_note": "Portfolio tab's adoption line and the Scenario Analysis defaults. A battery candidate whose year-1 battery savings exceed likely_threshold ($) is a likely adopter and takes a battery with probability likely_rate; the others with less_likely_rate. Homes offered flexibility enroll with probability flex_share. The Portfolio figures are the average of `runs` draws, with a fixed seed."
   },
  "_notes": {
   "source": "Part 3 assumptions. Battery spec from the Challenge Statement (Enphase IQ 10C); 3 kVA guideline from the Challenge Statement; rates, incentives and costs are planning assumptions.",
