@@ -17,3 +17,6 @@ __pycache__/
 
 # Ignore Jupyter autosave checkpoints
 archive/
+
+# Local secrets (API keys)
+.env
