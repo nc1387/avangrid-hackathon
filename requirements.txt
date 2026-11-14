@@ -26,10 +26,5 @@ ipykernel==6.31.0
 nbformat==5.10.4
 nbclient==0.10.2
 
-# Battery simulator: web API + front end (app/server.py, web/index.html) and the Streamlit prototype
-fastapi==0.138.1
-uvicorn==0.49.0
-pydantic==2.12.4
-streamlit==1.51.0
-plotly==6.3.0
+# Part 3 planner build (scripts/run_part3.py)
 pandas==2.3.3
