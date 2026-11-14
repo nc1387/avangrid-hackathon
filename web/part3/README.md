@@ -24,7 +24,14 @@ Open `onedrive-export/Data/part3/index.html`. The full run takes a few minutes f
 smaller file.
 
 Assumptions (battery spec, 3 kVA screen, flexibility shares, rates, incentives, finance, score weights) are in
-`config/part3_assumptions.json`. The Methodology tab documents each step and formula.
+`config/part3_assumptions.json`.
+
+**Real utility rates.** `python scripts/run_part3.py --utility cmp` (or `nyseg`, `rge`, `ui`) replaces the config's
+rates with that utility's residential time-varying rate from `data/tariffs/residential_tariffs.json` (NYSEG uses its
+Day/Night rate, SC 8, since its time-of-use rate needs 35,000 kWh a year). Delivery and supply are combined: the
+page's supply price is the rate's off-peak supply, and on- and off-peak prices carry the rest, so every hour's
+total matches the utility's rate. Notebook 99 builds one page per utility into `onedrive-export/Data/part3/<utility>/`
+and a starting page, `onedrive-export/Data/part3/index.html`, with a drop-down to switch between them. The Methodology tab documents each step and formula.
 
 ## Part 1 and 2 fields used
 

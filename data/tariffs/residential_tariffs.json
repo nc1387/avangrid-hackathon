@@ -12,6 +12,7 @@
    "None of these residential rates has a demand charge.",
    "Schedules are 12 months x 24 hours of indices into `periods`, in local clock time (hour 0 = midnight-1 am), weekdays and weekends separately. Holidays are not distinguished.",
    "Where a rate changed during the data year (CMP and UI on 1 Jan 2026), each plan lists every version with its start and end dates; the last version is the current one.",
+   "Where OpenEI has a delivery-only entry with the same hours, each period also has delivery_per_kwh and supply_per_kwh (= rate_per_kwh - delivery_per_kwh).",
    "Taxes and most riders are not included."
   ]
  },
@@ -53,7 +54,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.1747
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.08387,
+         "supply_per_kwh": 0.09083
         }
        ],
        "weekday_schedule": [
@@ -101,7 +104,8 @@
         "label": "67bf2b23defa2cd03006bfb3",
         "name": "WEST - SERVICE CLASSIFICATION NO. 1 - RESIDENTIAL SERVICE NSS",
         "uri": "https://apps.openei.org/IURDB/rate/view/67bf2b23defa2cd03006bfb3",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "67bf21821a06c5ae710b878d"
        },
        "tariff_source": "https://www.nyseg.com/documents/40132/5890332/PSC120ServiceClassification_1.pdf/3d1e7255-dc3e-46d6-32e8-16634436230b?t=1736442082171"
       }
@@ -130,7 +134,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.19354
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.08387,
+         "supply_per_kwh": 0.10967
         }
        ],
        "weekday_schedule": [
@@ -178,7 +184,8 @@
         "label": "67bf2b0501ca3937950b5192",
         "name": "EAST - SERVICE CLASSIFICATION NO. 1 - RESIDENTIAL SERVICE NSS",
         "uri": "https://apps.openei.org/IURDB/rate/view/67bf2b0501ca3937950b5192",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "67bf21821a06c5ae710b878d"
        },
        "tariff_source": "https://www.nyseg.com/documents/40132/5890332/PSC120ServiceClassification_1.pdf/3d1e7255-dc3e-46d6-32e8-16634436230b?t=1736442082171"
       }
@@ -207,7 +214,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.19558
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.08387,
+         "supply_per_kwh": 0.11171
         }
        ],
        "weekday_schedule": [
@@ -255,7 +264,8 @@
         "label": "67bf2429defa2cd03006bfb2",
         "name": "LOWER HUDSON VALLEY - SERVICE CLASSIFICATION NO. 1 - RESIDENTIAL SERVICE NSS",
         "uri": "https://apps.openei.org/IURDB/rate/view/67bf2429defa2cd03006bfb2",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "67bf21821a06c5ae710b878d"
        },
        "tariff_source": "https://www.nyseg.com/documents/40132/5890332/PSC120ServiceClassification_1.pdf/3d1e7255-dc3e-46d6-32e8-16634436230b?t=1736442082171"
       }
@@ -284,7 +294,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.20647
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.07767,
+         "supply_per_kwh": 0.1288
         },
         {
          "index": 1,
@@ -295,7 +307,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.184
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.07767,
+         "supply_per_kwh": 0.10633
         }
        ],
        "weekday_schedule": [
@@ -345,7 +359,8 @@
         "label": "67bf920fbf2fbcda3c0efd5f",
         "name": "WEST - SERVICE CLASSIFICATION NO. 8 Residential - Day Night Service NSS (Non-Retail)",
         "uri": "https://apps.openei.org/IURDB/rate/view/67bf920fbf2fbcda3c0efd5f",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "67bf90ab776dc2f3380e63e2"
        },
        "tariff_source": "https://www.nyseg.com/documents/40132/5890332/PSC120ServiceClassification_8.pdf/7b48a2ea-31e0-ce74-c061-e1f3bc35e624?t=1736441326752"
       }
@@ -374,7 +389,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.22754
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.07767,
+         "supply_per_kwh": 0.14987
         },
         {
          "index": 1,
@@ -385,7 +402,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.19653
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.07767,
+         "supply_per_kwh": 0.11886
         }
        ],
        "weekday_schedule": [
@@ -435,7 +454,8 @@
         "label": "67bf9216997764b245041d48",
         "name": "EAST - SERVICE CLASSIFICATION NO. 8 Residential - Day Night Service NSS (Non-Retail)",
         "uri": "https://apps.openei.org/IURDB/rate/view/67bf9216997764b245041d48",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "67bf90ab776dc2f3380e63e2"
        },
        "tariff_source": "https://www.nyseg.com/documents/40132/5890332/PSC120ServiceClassification_8.pdf/7b48a2ea-31e0-ce74-c061-e1f3bc35e624?t=1736441326752"
       }
@@ -464,7 +484,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.22924
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.07767,
+         "supply_per_kwh": 0.15157
         },
         {
          "index": 1,
@@ -475,7 +497,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.19653
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.07767,
+         "supply_per_kwh": 0.11886
         }
        ],
        "weekday_schedule": [
@@ -525,7 +549,8 @@
         "label": "67bf921f776dc2f3380e63e3",
         "name": "LOWER HUDSON VALLEY - SERVICE CLASSIFICATION NO. 8 Residential - Day Night Service NSS (Non-Retail)",
         "uri": "https://apps.openei.org/IURDB/rate/view/67bf921f776dc2f3380e63e3",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "67bf90ab776dc2f3380e63e2"
        },
        "tariff_source": "https://www.nyseg.com/documents/40132/5890332/PSC120ServiceClassification_8.pdf/7b48a2ea-31e0-ce74-c061-e1f3bc35e624?t=1736441326752"
       }
@@ -554,7 +579,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.09841
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.06628,
+         "supply_per_kwh": 0.03213
         },
         {
          "index": 1,
@@ -565,7 +592,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.21037
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.06628,
+         "supply_per_kwh": 0.14409
         },
         {
          "index": 2,
@@ -576,7 +605,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.18801
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.06628,
+         "supply_per_kwh": 0.12173
         }
        ],
        "weekday_schedule": [
@@ -652,7 +683,8 @@
         "label": "67bf96bb776dc2f3380e63e4",
         "name": "WEST - SERVICE CLASSIFICATION NO. 12 Residential Service TOU NSS (Non-Retail)",
         "uri": "https://apps.openei.org/IURDB/rate/view/67bf96bb776dc2f3380e63e4",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "67bf95ae1a06c5ae710b8793"
        },
        "tariff_source": "https://www.nyseg.com/documents/40132/5890332/PSC120ServiceClassification_12.pdf/9847d830-1da0-1c3b-9cbb-34b50d2c2a01?t=1736440989422"
       }
@@ -681,7 +713,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.18482
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.06628,
+         "supply_per_kwh": 0.11854
         },
         {
          "index": 1,
@@ -692,7 +726,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.23726
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.06628,
+         "supply_per_kwh": 0.17098
         },
         {
          "index": 2,
@@ -703,7 +739,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.20486
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.06628,
+         "supply_per_kwh": 0.13858
         }
        ],
        "weekday_schedule": [
@@ -779,7 +817,8 @@
         "label": "67bf95b51a06c5ae710b8794",
         "name": "EAST - SERVICE CLASSIFICATION NO. 12 Residential Service TOU NSS (Non-Retail)",
         "uri": "https://apps.openei.org/IURDB/rate/view/67bf95b51a06c5ae710b8794",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "67bf95ae1a06c5ae710b8793"
        },
        "tariff_source": "https://www.nyseg.com/documents/40132/5890332/PSC120ServiceClassification_12.pdf/9847d830-1da0-1c3b-9cbb-34b50d2c2a01?t=1736440989422"
       }
@@ -808,7 +847,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.18482
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.06628,
+         "supply_per_kwh": 0.11854
         },
         {
          "index": 1,
@@ -819,7 +860,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.23928
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.06628,
+         "supply_per_kwh": 0.173
         },
         {
          "index": 2,
@@ -830,7 +873,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.20685
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.06628,
+         "supply_per_kwh": 0.14057
         }
        ],
        "weekday_schedule": [
@@ -906,7 +951,8 @@
         "label": "67bf97c776aff5978905380c",
         "name": "LOWER HUDSON VALLEY - SERVICE CLASSIFICATION NO. 12 Residential Service TOU NSS (Non-Retail)",
         "uri": "https://apps.openei.org/IURDB/rate/view/67bf97c776aff5978905380c",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "67bf95ae1a06c5ae710b8793"
        },
        "tariff_source": "https://www.nyseg.com/documents/40132/5890332/PSC120ServiceClassification_12.pdf/9847d830-1da0-1c3b-9cbb-34b50d2c2a01?t=1736440989422"
       }
@@ -944,7 +990,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.174527
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.09346,
+         "supply_per_kwh": 0.081067
         }
        ],
        "weekday_schedule": [
@@ -992,7 +1040,8 @@
         "label": "68c87662584527c3070c367d",
         "name": "SERVICE CLASSIFICATION NO. 1 - RESIDENTIAL SERVICE RSS (Non-Retail Access Choice)",
         "uri": "https://apps.openei.org/IURDB/rate/view/68c87662584527c3070c367d",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "68c88812dbb826babf06c4d4"
        },
        "tariff_source": "https://www.rge.com/documents/40137/2114698/PSC19ServiceClassification_1.pdf/f60ba1cc-76cd-c454-2895-304ec0f5ec0c?t=1654895233611"
       }
@@ -1021,7 +1070,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.12913
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.0799,
+         "supply_per_kwh": 0.04923
         },
         {
          "index": 1,
@@ -1032,7 +1083,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.18283
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.0799,
+         "supply_per_kwh": 0.10293
         }
        ],
        "weekday_schedule": [
@@ -1081,7 +1134,8 @@
         "label": "68c8894d0ecf0fba6b094e5a",
         "name": "SERVICE CLASSIFICATION NO. 4 RESIDENTIAL SERVICE - TIME-OF-USE RATE RSS (Non-Retail Access Rate Choice) Schedule I",
         "uri": "https://apps.openei.org/IURDB/rate/view/68c8894d0ecf0fba6b094e5a",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "68c888c6d948d724670ef118"
        },
        "tariff_source": "https://www.rge.com/opco-supply-price"
       }
@@ -1123,7 +1177,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.21498
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.10898,
+         "supply_per_kwh": 0.106
         }
        ],
        "weekday_schedule": [
@@ -1171,7 +1227,8 @@
         "label": "66b11517fdb63f7ea70f62cd",
         "name": "A Residential Standard Offer Service (Bundled)",
         "uri": "https://apps.openei.org/IURDB/rate/view/66b11517fdb63f7ea70f62cd",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "66b114fefdb63f7ea70f62cc"
        },
        "tariff_source": "https://www.cmpco.com/documents/40117/115962041/a.pdf/e6878e07-2ab9-db28-ff98-eb3f5e91d264?t=1722441864154"
       },
@@ -1193,7 +1250,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.263684
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.136474,
+         "supply_per_kwh": 0.12721
         }
        ],
        "weekday_schedule": [
@@ -1241,7 +1300,8 @@
         "label": "6993c9d33444dea9740958a9",
         "name": "A Residential Standard Offer Service (Bundled)",
         "uri": "https://apps.openei.org/IURDB/rate/view/6993c9d33444dea9740958a9",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "6993c84caf24f32cad0c1778"
        },
        "tariff_source": "https://www.cmpco.com/documents/d/cmp/a"
       }
@@ -1341,7 +1401,8 @@
         "label": "66b11699a650c4a9610c481a",
         "name": "A-TOU Residential Service Time-of-Use",
         "uri": "https://apps.openei.org/IURDB/rate/view/66b11699a650c4a9610c481a",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": null
        },
        "tariff_source": "https://www.cmpco.com/documents/40117/115962041/atou.pdf/86f706a9-bf82-87b1-c41b-96fd02cde65b?t=1722442060839"
       },
@@ -1359,7 +1420,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.630354
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.503144,
+         "supply_per_kwh": 0.12721
         },
         {
          "index": 1,
@@ -1370,7 +1433,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.194662
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.067452,
+         "supply_per_kwh": 0.12721
         }
        ],
        "weekday_schedule": [
@@ -1419,7 +1484,8 @@
         "label": "6993c9629fff77cf2c0a967a",
         "name": "A-TOU Residential Service Time-of-Use",
         "uri": "https://apps.openei.org/IURDB/rate/view/6993c9629fff77cf2c0a967a",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "6993c8de530d515912068248"
        },
        "tariff_source": "https://www.cmpco.com/documents/d/cmp/atou"
       }
@@ -1457,7 +1523,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.334548
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.215448,
+         "supply_per_kwh": 0.1191
         }
        ],
        "weekday_schedule": [
@@ -1505,7 +1573,8 @@
         "label": "6759cfb6ab9afd98fa09bc98",
         "name": "Residential Service",
         "uri": "https://apps.openei.org/IURDB/rate/view/6759cfb6ab9afd98fa09bc98",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "6759cfb1631cc469390a4bc4"
        },
        "tariff_source": "https://www.uinet.com/documents/1678076/1695127/0.1%2BSchedule%2Bof%2BRates%2Band%2BRiders%2B-%2B05.01.22.pdf/5470a003-85b2-7104-39a5-567ea1c686f2?t=1654209434303"
       },
@@ -1523,7 +1592,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.334898
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.197948,
+         "supply_per_kwh": 0.13695
         }
        ],
        "weekday_schedule": [
@@ -1571,7 +1642,8 @@
         "label": "69af138baa74f99fce05780a",
         "name": "Residential Service",
         "uri": "https://apps.openei.org/IURDB/rate/view/69af138baa74f99fce05780a",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "69af11280c671e7bff0d1bef"
        },
        "tariff_source": "https://www.uinet.com/documents/d/uinet/0-1-schedule-of-rates-and-riders"
       }
@@ -1600,7 +1672,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.226748
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.116328,
+         "supply_per_kwh": 0.11042
         },
         {
          "index": 1,
@@ -1611,7 +1685,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.535688
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.390268,
+         "supply_per_kwh": 0.14542
         }
        ],
        "weekday_schedule": [
@@ -1660,7 +1736,8 @@
         "label": "6759e0fa631cc469390a4bc6",
         "name": "Residential Service Time-of-Use",
         "uri": "https://apps.openei.org/IURDB/rate/view/6759e0fa631cc469390a4bc6",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "6759e0f5631cc469390a4bc5"
        },
        "tariff_source": "https://www.uinet.com/documents/1678076/1695127/0.1%2BSchedule%2Bof%2BRates%2Band%2BRiders%2B-%2B05.01.22.pdf/5470a003-85b2-7104-39a5-567ea1c686f2?t=1654209434303"
       },
@@ -1678,7 +1755,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.243933
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.116315,
+         "supply_per_kwh": 0.127618
         },
         {
          "index": 1,
@@ -1689,7 +1768,9 @@
            "up_to_kwh_per_month": null,
            "rate_per_kwh": 0.491407
           }
-         ]
+         ],
+         "delivery_per_kwh": 0.328789,
+         "supply_per_kwh": 0.162618
         }
        ],
        "weekday_schedule": [
@@ -1738,7 +1819,8 @@
         "label": "69af148be15fe96c780a955b",
         "name": "Residential Service Time-of-Use",
         "uri": "https://apps.openei.org/IURDB/rate/view/69af148be15fe96c780a955b",
-        "approved": true
+        "approved": true,
+        "delivery_only_label": "69af13d3a9608156eb096f1c"
        },
        "tariff_source": "https://www.uinet.com/documents/d/uinet/0-1-schedule-of-rates-and-riders"
       }

@@ -71,6 +71,69 @@ CHANNELS = {
 }
 CHUNK = 1000
 
+# Real residential rates (scripts/fetch_tariffs.py). `--utility` replaces config economics.rates and supply_rate with
+# that utility's time-varying rate; without it the config's rates are used unchanged.
+TARIFFS = ROOT / 'data' / 'tariffs' / 'residential_tariffs.json'
+DEFAULT_PLAN = {'nyseg': 'day_night', 'rge': 'tou', 'cmp': 'tou', 'ui': 'tou'}   # NYSEG's SC 12 needs 35,000 kWh/yr
+PAGE_RATE_LABEL = '"CMP TOU delivery rate, effective 1/1/2026"'   # source label in the page's Assumptions table
+
+
+def utility_rates(cfg: dict, utility: str, plan: str | None = None, region: str | None = None,
+                  tariffs: Path = TARIFFS) -> dict:
+    """A copy of cfg with economics.rates and supply_rate set from a utility's rate in data/tariffs.
+
+    Uses the plan's version in effect at the end of the data year. The page models a rate as, per season, an on-peak
+    and an off-peak price plus one flat supply price, so: supply_rate = the rate's off-peak supply price, and the
+    on- and off-peak prices are the full price (delivery + supply) minus that. Totals match the utility's rate in
+    every hour; exports are credited at the off-peak supply price. Rates with more than two prices in a season, or
+    with weekend peak hours that differ from weekday ones, can't be represented and raise an error."""
+    t = json.loads(tariffs.read_text())
+    u = next((x for x in t['utilities'] if x['id'] == utility), None)
+    if u is None:
+        raise ValueError(f"unknown utility {utility!r}; choose from {[x['id'] for x in t['utilities']]}")
+    plan = plan or DEFAULT_PLAN[utility]
+    region = region or u.get('default_region')
+    p = next((x for x in u['plans'] if x['id'] == plan and x['region'] in (None, region)), None)
+    if p is None:
+        raise ValueError(f'{u["name"]} has no plan {plan!r}' + (f' in region {region!r}' if region else ''))
+    end = t['meta']['data_year']['end']
+    v = [x for x in p['versions'] if (x['start'] or '') <= end][-1]
+    periods = v['periods']
+    price = [x['rate_per_kwh'] for x in periods]
+    split = all('supply_per_kwh' in x for x in periods)
+    supply = min(x['supply_per_kwh'] for x in periods) if split else 0.0
+    rates = {}
+    for season in SEASONS:
+        months = cfg['seasons'][season]
+        rows = {(tuple(v['weekday_schedule'][m - 1]), tuple(v['weekend_schedule'][m - 1])) for m in months}
+        if len(rows) > 1:
+            raise ValueError(f'{u["name"]} {p["name"]}: hours differ between months of the {season} season')
+        wd, we = next(iter(rows))
+        wd_p, we_p = [price[i] for i in wd], [price[i] for i in we]
+        levels = sorted(set(wd_p) | set(we_p))
+        if len(levels) > 2:
+            raise ValueError(f'{u["name"]} {p["name"]}: {len(levels)} prices in the {season} season; the page '
+                             'supports on- and off-peak only')
+        hi, lo = levels[-1], levels[0]
+        on_wd = [h + 1 for h in range(24) if wd_p[h] == hi and hi != lo]
+        on_we = [h + 1 for h in range(24) if we_p[h] == hi and hi != lo]
+        if on_we and on_we != on_wd:
+            raise ValueError(f'{u["name"]} {p["name"]}: weekend peak hours differ from weekday ones')
+        rates[season] = {'on_peak_he': on_wd, 'weekdays_only': not on_we,
+                         'on_peak': round(hi - supply, 6), 'off_peak': round(lo - supply, 6)}
+    out = json.loads(json.dumps(cfg))
+    eco = out['economics']
+    eco['rates'], eco['supply_rate'] = rates, round(supply, 6)
+    eco['tariff'] = {
+        'utility': u['id'], 'utility_name': u['name'], 'utility_full_name': u['full_name'], 'state': u['state'],
+        'plan': p['id'], 'plan_name': p['name'], 'region': p['region'], 'effective': v['start'],
+        'fixed_charge_per_month': v['fixed_charge_per_month'], 'source': v['tariff_source'],
+        'openei_label': v['openei']['label'], 'supply_split': split,
+        'label': f"{u['name']} {p['name']}" + (f" ({p['region']})" if p['region'] else '')
+                 + f", effective {v['start']} (OpenEI; delivery and supply combined)",
+    }
+    return out
+
 
 # ---------------------------------------------------------------------------------------------- inputs
 def col(df: pd.DataFrame, name: str, default=0.0) -> np.ndarray:
@@ -598,7 +661,8 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
     data = {
         'meta': {'generated': datetime.now().strftime('%Y-%m-%d %H:%M'), 'synthetic': bool(synthetic),
                  'n_customers': N, 'n_valid': N, 'n_listed': len(listed), 'runtime_s': round(time.time() - t0, 1),
-                 'inputs': 'Part 1 appliance inventory and technology scores, Part 2 segments, cleaned hourly loads'},
+                 'inputs': 'Part 1 appliance inventory and technology scores, Part 2 segments, cleaned hourly loads',
+                 'tariff': eco.get('tariff')},
         'config': {'data': {'start_date': str(cal.date[0]), 'n_days': cal.D, 'max_customer_number': int(ids.max()),
                             'min_valid_share': 0.8}, **{k: v for k, v in cfg.items() if not k.startswith('_')}},
         'summary': summary,
@@ -755,6 +819,9 @@ def write_outputs(data, recs, out_dir: Path, template: Path):
         start = html.index('window.__APP_DATA__=')
         end = html.index('</script>', start)
         page = html[:start] + 'window.__APP_DATA__=' + payload.replace('</', '<\\/') + ';' + html[end:]
+        tariff = data['config']['economics'].get('tariff')
+        if tariff and PAGE_RATE_LABEL in page:        # name the rate actually used in the Assumptions table
+            page = page.replace(PAGE_RATE_LABEL, json.dumps(tariff['label']))
         (out_dir / 'index.html').write_text(page)
         print(f'  page: {out_dir / "index.html"} ({len(page) / 1e6:.1f} MB)')
 
@@ -766,8 +833,15 @@ def main(argv=None):
     ap.add_argument('--output', type=Path, default=None, help='output folder (default: the input folder)')
     ap.add_argument('--max-customers', type=int, default=0, help='list only the top N customers on the page')
     ap.add_argument('--synthetic', action='store_true', help='mark the output as demonstration data')
+    ap.add_argument('--utility', choices=sorted(DEFAULT_PLAN), help="use this utility's residential time-varying rate "
+                    'from data/tariffs (default: the rates in the config)')
+    ap.add_argument('--plan', help='rate plan id in data/tariffs (default: the utility\'s time-varying plan)')
+    ap.add_argument('--region', help='NYSEG supply region (default: West)')
     args = ap.parse_args(argv)
     cfg = json.loads(args.config.read_text())
+    if args.utility:
+        cfg = utility_rates(cfg, args.utility, args.plan, args.region)
+        print(f"rates: {cfg['economics']['tariff']['label']}")
     run(args.input, cfg, args.max_customers, out_dir=args.output, synthetic=args.synthetic)
 
 

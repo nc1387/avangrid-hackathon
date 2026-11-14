@@ -9,6 +9,9 @@ utilities in the battery simulator.
 | `residential_tariffs.json` | **The file to load.** Every utility, its rate plans, prices, hours and sources |
 | `openei/<label>.json` | OpenEI's full record for each rate used, as fetched (the label is OpenEI's rate ID) |
 
+The Part 3 planner uses these rates: `scripts/run_part3.py --utility <id>`, and notebook 99 builds one planner page per
+utility.
+
 Both are committed, so nobody needs an API key to reproduce the results. They are also a fixed snapshot: OpenEI
 entries and the rates themselves change over time.
 
@@ -48,7 +51,8 @@ utilities[]
     versions[]            one per rate change in the data year, oldest first; the last is current
       start, end          "2026-01-01"; null = still in effect
       fixed_charge_per_month
-      periods[]           index, name ("Off-peak" | "Mid-peak" | "On-peak" | "All hours"), rate_per_kwh, tiers[]
+      periods[]           index, name ("Off-peak" | "Mid-peak" | "On-peak" | "All hours"), rate_per_kwh, tiers[],
+                          and delivery_per_kwh + supply_per_kwh where OpenEI has a matching delivery-only entry
       weekday_schedule    12 months x 24 hours of period indices (hour 0 = midnight-1 am, local clock time)
       weekend_schedule    the same for Saturdays and Sundays
       hours[]             the schedules in words, grouped by months with the same hours

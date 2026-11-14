@@ -25,7 +25,7 @@ section: what was tested or dropped at that step, and why.
 | `85_peak-reduction-stack` | Least-cost peak reduction: flexible loads found by the appliance flags (thermostats, pool pumps, water heaters, EV charging) ranked against batteries by cost per kW, by cluster; `peak_reduction_stack` | <1 min |
 | `90_usage-stabilization` | The rest of the stabilization analysis (not needed by the models); completes `customer_stability` | <1 min |
 | `95_appliance-flag-associations` | How well the appliance flags predict one another (correlation, lift, conditional odds, models), and injection tests of which rules confuse one load for another | <1 min |
-| `99_build-planner` | Builds the Part 3 planner page on the real data from `avangrid.db` (export, then `scripts/run_part3.py`); open `onedrive-export/Data/part3/index.html` | ~1 min |
+| `99_build-planner` | Builds the Part 3 planner on the real data from `avangrid.db`, once per utility on its real residential time-varying rate (`data/tariffs/`); open `onedrive-export/Data/part3/index.html` and switch utilities with the drop-down | ~4 min |
 
 The notebooks and scripts these replaced (the first versions of notebooks 10–60 and the model, appliance,
 segmentation and battery scripts) are in `archive/` for reference; they aren't kept working.
