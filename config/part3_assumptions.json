@@ -146,6 +146,12 @@
   "curve_days": 60,
   "_note": "Dispatch batteries as one fleet to minimize the system peak, and size the fleet at the knee of the peak-versus-size curve: the smallest fleet within knee_share of the best achievable peak reduction, on the curve_days highest days. Set optimize to false for per-home dispatch."
  },
+  "adoption": {
+    "battery_share": 0.2,
+    "flex_share": 0.5,
+    "seed": 2026,
+    "_note": "Portfolio tab's adoption line and the Scenario Analysis defaults: battery_share of the fleet's homes take a battery (drawn at random, weighted by year-1 battery savings) and flex_share of the homes offered flexibility enroll (drawn at random). The seed keeps the draw the same on every run."
+  },
  "_notes": {
   "source": "Part 3 assumptions. Battery spec from the Challenge Statement (Enphase IQ 10C); 3 kVA guideline from the Challenge Statement; rates, incentives and costs are planning assumptions.",
   "inputs": "Only Part 1 and Part 2 outputs are used: hourly loads cleaned by notebooks 10-20, appliance inventory and technology scores (Part 1), segments (Part 2), exported by scripts/export_part3_inputs.py.",

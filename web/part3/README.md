@@ -27,11 +27,25 @@ Assumptions (battery spec, 3 kVA screen, flexibility shares, rates, incentives, 
 `config/part3_assumptions.json`.
 
 **Cluster Analysis tab** (second from the left): notebook 70's eight behavioural clusters, with a short description,
-size and share of customers, battery homes, the average of each home's median and 75th percentile hourly kWh over
+size and share of customers, battery candidates, the average of each home's median and 95th percentile hourly kWh over
 the year, the cluster's combined peak in summer and winter (its homes' load added up, averaged over the season's 20
 highest system days, as in the Portfolio tab's peak-day chart, at the highest hour; today's load, before flexibility
 or batteries), and the share of homes flagged for each appliance (Part 1 inventory). Built by `cluster_summary` in
 `scripts/run_part3.py`.
+
+**Adoption (Portfolio tab).** The peak-day chart has a third, dashed line: the system load if only some customers take
+part (`adoption` in the config). 20% of the fleet's homes take a battery, drawn at random with each home's chance
+weighted by its year-1 battery savings, and are dispatched as their own fleet; 50% of the homes offered flexibility
+enroll, drawn at random. A fixed seed keeps the draw the same on every run. The other line shows 100% adoption. The
+top line's avoided capacity value (relief at the binding season's peak hours × $/kW-yr) and upfront investment
+(battery hardware + installation) are for the adopting homes and follow the Assumptions tab. The Scenario Analysis
+tab starts at the same 20% and 50%.
+
+**Scenario Analysis inputs** (`scenario_inputs` in the summary) are measured over every customer, not just those
+listed on the page: today's load at the binding season's peak hours, the peak-hour load a new heat pump or EV adds
+(median of likely heat-pump or EV homes minus the median of homes with no electric heat, EV or solar), how many homes
+could add each, and the flexibility relief. On NYSEG's data a heat pump adds 0.59 kW at the summer peak hours and
+3.70 kW at the winter ones. The battery bar still draws only on the battery candidates listed on the page.
 
 **Assumptions tab.** Edits don't take effect until **Re-Calculate** is clicked; it then reruns the financial model and
 the ranking for every page. **Discard changes** goes back to the inputs in use.
