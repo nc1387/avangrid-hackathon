@@ -26,6 +26,12 @@ smaller file.
 Assumptions (battery spec, 3 kVA screen, flexibility shares, rates, incentives, finance, score weights) are in
 `config/part3_assumptions.json`.
 
+**Fleet dispatch.** With `fleet.optimize` on (the default), the battery candidates are dispatched as one fleet: a
+daily linear program sets the fleet's charging and discharging to minimize the system peak, and the number of
+batteries is the knee of the peak-versus-fleet-size curve (the smallest fleet within `knee_share`, 95%, of the best
+achievable peak). On the real data that is 7,667 of 15,034 candidate homes, and the annual peak falls from 78.0 to
+59.8 MW (74.8 MW when every candidate charges in the same hours). Set `optimize` to false for per-home dispatch.
+
 **Real utility rates.** `python scripts/run_part3.py --utility cmp` (or `nyseg`, `rge`, `ui`) replaces the config's
 rates with that utility's residential time-varying rate from `data/tariffs/residential_tariffs.json` (NYSEG uses its
 Day/Night rate, SC 8, since its time-of-use rate needs 35,000 kWh a year). Delivery and supply are combined: the

@@ -1,148 +1,154 @@
 {
-  "seasons": {
-    "summer": [
-      6,
-      7,
-      8,
-      9
+ "seasons": {
+  "summer": [
+   6,
+   7,
+   8,
+   9
+  ],
+  "winter": [
+   11,
+   12,
+   1,
+   2,
+   3
+  ],
+  "shoulder": [
+   4,
+   5,
+   10
+  ]
+ },
+ "system_peak": {
+  "top_hours_per_season": 20,
+  "top_days_for_window": 20,
+  "window_length_h": 4
+ },
+ "weather_model": {
+  "cooling_base_f": 65,
+  "heating_base_f": 60,
+  "design_summer_f": 90,
+  "design_winter_f": 5
+ },
+ "battery": {
+  "unit_kwh": 10.08,
+  "unit_kw": 3.84,
+  "max_units": 2,
+  "round_trip_eff": 0.894,
+  "reserve_soc": 0.2,
+  "grid_charge_cap_kw": 3.0,
+  "charge_hours_n": 6
+ },
+ "flex": {
+  "ev_shift_share": 0.9,
+  "ev_spike_kw": 2.5,
+  "cooling_shed_share": 0.3,
+  "heating_shed_share": 0.2,
+  "water_heater_kw": 0.5,
+  "pool_kw": 0.8,
+  "pool_months": [
+   5,
+   6,
+   7,
+   8,
+   9
+  ]
+ },
+ "screening": {
+  "service_incremental_kva": 3.0,
+  "min_need_kw": 0.75,
+  "flex_covers_share": 0.8,
+  "min_battery_cp_kw": 0.5,
+  "second_unit_min_gain_kw": 0.5,
+  "solar_min_export_kwh": 1000,
+  "hp_whatif_kw": 4.0,
+  "hp_conversion_cop": 2.0,
+  "matrix_split": 0.5,
+  "ev_whatif_kw": 7.2,
+  "persistence_days": 40,
+  "persistence_margin_kw": 1.0,
+  "sensitive_kw_per_f": 0.02,
+  "lever_min_p": 0.5
+ },
+ "score_weights": {
+  "capacity_relief": 0.35,
+  "persistence": 0.2,
+  "constraint": 0.2,
+  "electrification": 0.1,
+  "economics": 0.15
+ },
+ "economics": {
+  "rates": {
+   "summer": {
+    "on_peak_he": [
+     18,
+     19,
+     20,
+     21
     ],
-    "winter": [
-      11,
-      12,
-      1,
-      2,
-      3
+    "weekdays_only": true,
+    "on_peak": 0.503144,
+    "off_peak": 0.067452
+   },
+   "winter": {
+    "on_peak_he": [
+     18,
+     19,
+     20,
+     21
     ],
-    "shoulder": [
-      4,
-      5,
-      10
-    ]
+    "weekdays_only": true,
+    "on_peak": 0.503144,
+    "off_peak": 0.067452
+   },
+   "shoulder": {
+    "on_peak_he": [
+     18,
+     19,
+     20,
+     21
+    ],
+    "weekdays_only": true,
+    "on_peak": 0.503144,
+    "off_peak": 0.067452
+   }
   },
-  "system_peak": {
-    "top_hours_per_season": 20,
-    "top_days_for_window": 20,
-    "window_length_h": 4
-  },
-  "weather_model": {
-    "cooling_base_f": 65,
-    "heating_base_f": 60,
-    "design_summer_f": 90,
-    "design_winter_f": 5
-  },
-  "battery": {
-    "unit_kwh": 10.08,
-    "unit_kw": 3.84,
-    "max_units": 2,
-    "round_trip_eff": 0.894,
-    "reserve_soc": 0.2,
-    "grid_charge_cap_kw": 3.0,
-    "charge_hours_n": 6
-  },
-  "flex": {
-    "ev_shift_share": 0.9,
-    "ev_spike_kw": 2.5,
-    "cooling_shed_share": 0.3,
-    "heating_shed_share": 0.2,
-    "water_heater_kw": 0.5,
-    "pool_kw": 0.8,
-    "pool_months": [
-      5,
-      6,
-      7,
-      8,
-      9
-    ]
-  },
-  "screening": {
-    "service_incremental_kva": 3.0,
-    "min_need_kw": 0.75,
-    "flex_covers_share": 0.8,
-    "min_battery_cp_kw": 0.5,
-    "second_unit_min_gain_kw": 0.5,
-    "solar_min_export_kwh": 1000,
-    "hp_whatif_kw": 4.0,
-    "hp_conversion_cop": 2.0,
-    "matrix_split": 0.5,
-    "ev_whatif_kw": 7.2,
-    "persistence_days": 40,
-    "persistence_margin_kw": 1.0,
-    "sensitive_kw_per_f": 0.02,
-    "lever_min_p": 0.5
-  },
-  "score_weights": {
-    "capacity_relief": 0.35,
-    "persistence": 0.2,
-    "constraint": 0.2,
-    "electrification": 0.1,
-    "economics": 0.15
-  },
-  "economics": {
-    "rates": {
-      "summer": {
-        "on_peak_he": [
-          18,
-          19,
-          20,
-          21
-        ],
-        "weekdays_only": true,
-        "on_peak": 0.503144,
-        "off_peak": 0.067452
-      },
-      "winter": {
-        "on_peak_he": [
-          18,
-          19,
-          20,
-          21
-        ],
-        "weekdays_only": true,
-        "on_peak": 0.503144,
-        "off_peak": 0.067452
-      },
-      "shoulder": {
-        "on_peak_he": [
-          18,
-          19,
-          20,
-          21
-        ],
-        "weekdays_only": true,
-        "on_peak": 0.503144,
-        "off_peak": 0.067452
-      }
-    },
-    "supply_rate": 0.12,
-    "incentive_summer_per_kw": 200,
-    "incentive_winter_per_kw": 25,
-    "incentive_summer_per_kw_late": 115,
-    "incentive_winter_per_kw_late": 15,
-    "avoided_capacity_per_kw_yr": 100,
-    "service_upgrade_cost": 6000
-  },
-  "finance": {
-    "battery_capex_per_unit": 6500,
-    "install_base": 4500,
-    "install_per_extra_unit": 1500,
-    "rebate_per_kwh": 0,
-    "tax_credit_pct": 0.0,
-    "rate_escalator": 0.03,
-    "degradation": 0.01,
-    "om_per_yr": 0,
-    "discount_rate": 0.07,
-    "life_years": 15
-  },
-  "waves": {
-    "wave1_min_score": 80,
-    "wave2_min_score": 60
-  },
-  "export": {
-    "max_profiles": 3000
-  },
-  "_notes": {
-    "source": "Part 3 assumptions. Battery spec from the Challenge Statement (Enphase IQ 10C); 3 kVA guideline from the Challenge Statement; rates, incentives and costs are planning assumptions.",
-    "inputs": "Only Part 1 and Part 2 outputs are used: hourly loads cleaned by notebooks 10-20, appliance inventory and technology scores (Part 1), segments (Part 2), exported by scripts/export_part3_inputs.py.",
-    "shoulder_window": "Shoulder-season days (Apr, May, Oct) use the binding season's discharge window."
-  }
+  "supply_rate": 0.12,
+  "incentive_summer_per_kw": 200,
+  "incentive_winter_per_kw": 25,
+  "incentive_summer_per_kw_late": 115,
+  "incentive_winter_per_kw_late": 15,
+  "avoided_capacity_per_kw_yr": 100,
+  "service_upgrade_cost": 6000
+ },
+ "finance": {
+  "battery_capex_per_unit": 6500,
+  "install_base": 4500,
+  "install_per_extra_unit": 1500,
+  "rebate_per_kwh": 0,
+  "tax_credit_pct": 0.0,
+  "rate_escalator": 0.03,
+  "degradation": 0.01,
+  "om_per_yr": 0,
+  "discount_rate": 0.07,
+  "life_years": 15
+ },
+ "waves": {
+  "wave1_min_score": 80,
+  "wave2_min_score": 60
+ },
+ "export": {
+  "max_profiles": 3000
+ },
+ "fleet": {
+  "optimize": true,
+  "knee_share": 0.95,
+  "curve_days": 60,
+  "_note": "Dispatch batteries as one fleet to minimize the system peak, and size the fleet at the knee of the peak-versus-size curve: the smallest fleet within knee_share of the best achievable peak reduction, on the curve_days highest days. Set optimize to false for per-home dispatch."
+ },
+ "_notes": {
+  "source": "Part 3 assumptions. Battery spec from the Challenge Statement (Enphase IQ 10C); 3 kVA guideline from the Challenge Statement; rates, incentives and costs are planning assumptions.",
+  "inputs": "Only Part 1 and Part 2 outputs are used: hourly loads cleaned by notebooks 10-20, appliance inventory and technology scores (Part 1), segments (Part 2), exported by scripts/export_part3_inputs.py.",
+  "shoulder_window": "Shoulder-season days (Apr, May, Oct) use the binding season's discharge window."
+ }
 }

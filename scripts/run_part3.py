@@ -28,6 +28,9 @@ Method (also shown on the page's Methodology tab):
  4. Battery: 1 and 2 units simulated on the load left after flex, every day. Discharge levels the top of the
     window (find T: sum_h min(P, max(0, L_h - T)) = stored x sqrt(eff)). Charging uses solar surplus first,
     then the grid at <= 3 kW in the 6 lowest system-load hours before the window.
+ 4b. Fleet (config fleet.optimize, on by default): the batteries chosen in 5 are dispatched as one fleet instead;
+    a daily linear program minimizes the system peak, and the fleet size is the knee of the peak-versus-fleet-size
+    curve (see fleet_day_lp and choose_fleet). Bills, relief and economics use each home's fleet-dispatched load.
  5. Size: no battery if flex covers 80% of the excess, the excess is under 0.75 kW, or the home already has
     storage (Part 1 solar + battery). 1 unit if it cuts CP load by >= 0.5 kW; 2 units if the second adds
     >= 0.5 kW or is needed to get back inside 3 kVA.
@@ -76,6 +79,17 @@ CHUNK = 1000
 TARIFFS = ROOT / 'data' / 'tariffs' / 'residential_tariffs.json'
 DEFAULT_PLAN = {'nyseg': 'day_night', 'rge': 'tou', 'cmp': 'tou', 'ui': 'tou'}   # NYSEG's SC 12 needs 35,000 kWh/yr
 PAGE_RATE_LABEL = '"CMP TOU delivery rate, effective 1/1/2026"'   # source label in the page's Assumptions table
+PAGE_FLEET_TEXT = [                                               # page text replaced when the fleet step runs
+    ('"Battery discharge window"', '"Flexibility window"'),
+    ('"Charging uses solar surplus first, then the grid at \\u2264 ",n.grid_charge_cap_kw," kW in the ",'
+     'n.charge_hours_n," lowest system-load hours before the window."',
+     '"This per-home simulation picks candidates and sizes. The batteries are then dispatched as one fleet: each '
+     'day a linear program sets the fleet\\u2019s hourly charging (from the grid, \\u2264 ",n.grid_charge_cap_kw,'
+     '" kW per home) and discharging (each home up to its own load) to minimize that day\\u2019s system peak. The '
+     'fleet size is the knee of the peak-versus-fleet-size curve: the smallest fleet within {pct} of the best '
+     'achievable peak reduction, here {homes} of {cands} candidate homes. Candidates outside the fleet get '
+     'flexibility only."'),
+]
 
 
 def utility_rates(cfg: dict, utility: str, plan: str | None = None, region: str | None = None,
@@ -399,6 +413,134 @@ def battery(Lf, units, cal, cfg):
             'solar_charged': solar_used.sum(1)}
 
 
+# ---------------------------------------------------------------------------------------------- fleet optimization
+# Per-home dispatch (battery() above) charges every battery in the same hours, which can create a new system peak.
+# Instead the fleet is dispatched as one: each day, a small linear program chooses the fleet's hourly charge c_h and
+# discharge d_h to minimize that day's system peak T:
+#     min T  s.t.  S_h - d_h + c_h <= T;  0 <= d_h <= A_h (fleet's dischargeable kW: each home up to its own load
+#     and power rating);  0 <= c_h <= C (3 kW per home, scaled so no home exceeds it);  stored energy
+#     e_{h+1} = e_h + sqrt(eff) c_h - d_h / sqrt(eff), 0 <= e_h <= E (usable kWh), cyclic over the day.
+# The fleet size comes from the knee of the peak-versus-size curve: candidate homes are ranked by how much load their
+# batteries can cover at the system peak, and the smallest fleet within `knee_share` of the best achievable peak
+# reduction is chosen. The fleet's hourly charge and discharge are then split across its homes (each home's
+# discharge follows the fleet's hourly shape, up to its own load; its charge follows the fleet's charge shape), and
+# every result (system peak, bills, relief) is computed from the homes' own net loads.
+
+def fleet_day_lp(s, A, E, C, eff):
+    """One day's min-peak dispatch. s: system load (24), A: dischargeable kW (24), E: usable kWh, C: charge cap kW."""
+    from scipy.optimize import linprog
+    leg = np.sqrt(eff)
+    nv = 73                                               # c (24), d (24), e (24), T
+    cost = np.zeros(nv)
+    cost[-1] = 1.0
+    cost[24:48] = 1e-6                                    # tie-break: no needless cycling
+    A_ub = np.zeros((24, nv))
+    A_ub[np.arange(24), np.arange(24)] = 1
+    A_ub[np.arange(24), 24 + np.arange(24)] = -1
+    A_ub[:, -1] = -1
+    A_eq = np.zeros((24, nv))
+    for h in range(24):
+        A_eq[h, 48 + (h + 1) % 24], A_eq[h, 48 + h], A_eq[h, h], A_eq[h, 24 + h] = 1, -1, -leg, 1 / leg
+    bounds = [(0, C)] * 24 + [(0, float(a)) for a in A] + [(0, E)] * 24 + [(None, None)]
+    r = linprog(cost, A_ub=A_ub, b_ub=-np.asarray(s, float), A_eq=A_eq, b_eq=np.zeros(24), bounds=bounds,
+                method='highs')
+    if r.status != 0:
+        raise RuntimeError(f'fleet dispatch LP failed: {r.message}')
+    return r.x[:24], r.x[24:48], r.x[-1]
+
+
+def fleet_inputs(Lf_c, units_c, bcfg, idx=None):
+    """Fleet totals for the homes in idx: dischargeable kW per hour (D x 24), usable kWh, charge cap kW."""
+    idx = np.arange(len(units_c)) if idx is None else idx
+    D = Lf_c.shape[1] // 24
+    A = np.zeros(Lf_c.shape[1])
+    for a in range(0, len(idx), 2000):
+        j = idx[a:a + 2000]
+        A += np.minimum(np.maximum(Lf_c[j], 0), (units_c[j] * bcfg['unit_kw'])[:, None]).sum(0, dtype=np.float64)
+    usable = units_c[idx] * bcfg['unit_kwh'] * (1 - bcfg['reserve_soc'])
+    C = bcfg['grid_charge_cap_kw'] * usable.sum() / max(usable.max(), 1e-9)
+    return A.reshape(D, 24), float(usable.sum()), float(C)
+
+
+def fleet_peak(S0d, A, E, C, eff, days):
+    """Annual system peak (kW) with the fleet dispatched on `days`; other days keep their load."""
+    rest = np.setdiff1d(np.arange(len(S0d)), days)
+    peaks = [fleet_day_lp(S0d[d], A[d], E, C, eff)[2] for d in days]
+    return max(max(peaks), S0d[rest].max() if len(rest) else 0.0)
+
+
+def choose_fleet(S_flex, Lf_c, units_c, cal, cfg):
+    """Rank candidates, trace the peak-versus-fleet-size curve and pick the knee. Returns (order, K, curve)."""
+    b, fcfg = cfg['battery'], cfg['fleet']
+    eff = b['round_trip_eff']
+    S0d = S_flex.reshape(cal.D, 24)
+    days = np.sort(np.argsort(S0d.max(1))[::-1][:fcfg.get('curve_days', 60)])
+    peak_hour = S0d.argmax(1)                             # each day's peak hour
+    cover = np.minimum(np.maximum(Lf_c.reshape(len(units_c), cal.D, 24)[:, days, peak_hour[days]], 0),
+                       (units_c * b['unit_kw'])[:, None]).mean(1)
+    order = np.lexsort((np.arange(len(units_c)), -cover))  # most kW at the system peak first
+    n = len(order)
+    cache = {}
+
+    def peak_of(k):
+        if k not in cache:
+            A, E, C = fleet_inputs(Lf_c, units_c, b, order[:k]) if k else (np.zeros((cal.D, 24)), 0.0, 0.0)
+            cache[k] = S0d.max() if k == 0 else fleet_peak(S0d, A, E, C, eff, days)
+        return cache[k]
+
+    grid = sorted({0, n} | {int(round(x)) for x in np.geomspace(100, n, 14) if x < n})
+    for k in grid:
+        peak_of(k)
+    base, best = cache[0], min(cache.values())
+    share = lambda k: (base - cache[k]) / max(base - best, 1e-9)  # noqa: E731
+    hi = next(k for k in grid if share(k) >= fcfg.get('knee_share', 0.95))
+    lo = max(k for k in grid if k < hi) if hi > 0 else 0
+    while hi - lo > max(50, n // 500):                     # bisect for the smallest fleet past the knee
+        mid = (lo + hi) // 2
+        peak_of(mid)
+        lo, hi = (mid, hi) if share(mid) < fcfg.get('knee_share', 0.95) else (lo, mid)
+    curve = []
+    for k in sorted(cache):
+        sel = order[:k]
+        curve.append({'homes': int(k), 'units': int(units_c[sel].sum()),
+                      'mwh': round(float((units_c[sel] * b['unit_kwh']).sum()) / 1000, 2),
+                      'peak_mw': round(cache[k] / 1000, 3), 'share_of_best_cut': round(share(k), 3)})
+    return order, hi, curve
+
+
+def fleet_dispatch(S_flex, Lf_c, units_c, sel, cal, cfg):
+    """Year of fleet dispatch for homes `sel`; returns each selected home's net load (len(sel) x H, float32) and the
+    kWh it discharged."""
+    b = cfg['battery']
+    eff = b['round_trip_eff']
+    A, E, C = fleet_inputs(Lf_c, units_c, b, sel)
+    S0d = S_flex.reshape(cal.D, 24)
+    c_f, d_f = np.zeros((cal.D, 24)), np.zeros((cal.D, 24))
+    for d in range(cal.D):
+        c_f[d], d_f[d], _ = fleet_day_lp(S0d[d], A[d], E, C, eff)
+    d_shape = d_f / np.maximum(d_f.sum(1, keepdims=True), 1e-9)
+    c_shape = c_f / np.maximum(c_f.sum(1, keepdims=True), 1e-9)
+    usable = units_c * b['unit_kwh'] * (1 - b['reserve_soc'])
+    net = np.empty((len(sel), cal.H), np.float32)
+    delivered_kwh = np.zeros(len(sel))
+    for a in range(0, len(sel), 1000):
+        j = sel[a:a + 1000]
+        Lf = Lf_c[j].astype(np.float64).reshape(len(j), cal.D, 24)
+        Ah = np.minimum(np.maximum(Lf, 0), (units_c[j] * b['unit_kw'])[:, None, None])
+        target = d_f.sum(1)[None, :] * (usable[j] / E)[:, None]          # this home's share of each day's discharge
+        target = np.minimum(target, (Ah * (d_shape[None] > 0)).sum(2))
+        lo, hi = np.zeros(target.shape), np.full(target.shape, 1e4)
+        for _ in range(50):                                             # discharge = min(own kW, k x fleet shape)
+            mid = (lo + hi) / 2
+            over = np.minimum(Ah, mid[..., None] * d_shape[None]).sum(2) > target
+            lo, hi = np.where(over, lo, mid), np.where(over, mid, hi)
+        dis = np.minimum(Ah, lo[..., None] * d_shape[None])
+        chg = np.minimum(dis.sum(2, keepdims=True) / eff * c_shape[None], b['grid_charge_cap_kw'])
+        net[a:a + len(j)] = (Lf - dis + chg).reshape(len(j), -1)
+        delivered_kwh[a:a + len(j)] = dis.sum((1, 2))
+    return net, delivered_kwh
+
+
 # ---------------------------------------------------------------------------------------------- main run
 def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLATE, out_dir: Path | None = None,
         synthetic: bool = False):
@@ -451,6 +593,9 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
     lever_kw = {k: np.zeros(N) for k in LEVERS}
     action = np.empty(N, object)
     S_flex, S_after, S_naive = np.zeros(H), np.zeros(H), np.zeros(H)
+    fleet_on = cfg.get('fleet', {}).get('optimize', False)
+    fleet_rows, fleet_Lf, S_after_cand = [], [], np.zeros(H)
+    has_lever_all, shed_kwh = np.zeros(N, bool), np.zeros(N)
     profiles, buckets = {}, {}
     td = {s: windows[s]['_top_days'] for s in ('summer', 'winter')}
     min_need, cover = sc['min_need_kw'], sc['flex_covers_share']
@@ -502,6 +647,8 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
         act = np.array([f'{x}{u}u' if x.endswith('BESS ') else x for x, u in zip(act, units)], object)
         action[rows] = act
         R['units'][rows] = units
+        has_lever_all[rows] = has_lever
+        shed_kwh[rows] = shed.sum(1)
         use_flex = ~np.isin(act, ['No action', 'Monitor'])
         Lflex_used = np.where(use_flex[:, None], Lf, L)
         net = np.where((units == 2)[:, None], bt2['net'], np.where((units == 1)[:, None], bt1['net'], Lflex_used))
@@ -509,6 +656,10 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
         S_flex += Lflex_used.sum(0)
         S_after += net.sum(0)
         S_naive += naive.sum(0)
+        if fleet_on and (units > 0).any():                # battery candidates, for the fleet step
+            fleet_rows.append(rows[units > 0])
+            fleet_Lf.append(Lf[units > 0].astype(np.float32))
+            S_after_cand += net[units > 0].sum(0)
         for s in ('summer', 'winter'):
             R[f'cp_{s}_after'][rows] = net[:, cp_idx[s]].mean(1)
             R[f'cp_{s}_flex'][rows] = Lflex_used[:, cp_idx[s]].mean(1)
@@ -534,6 +685,66 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
             if units[j] > 0:
                 buckets[int(ids[i])] = {k: np.round(v[j], 1).tolist() for k, v in bk.items()}
         print(f'  {rows[-1] + 1:,}/{N:,} customers  ({time.time() - t0:.0f}s)')
+
+    # Fleet step: choose how many batteries and dispatch them together (see fleet_day_lp).
+    fleet = None
+    if fleet_on and fleet_rows:
+        cand = np.concatenate(fleet_rows)
+        Lf_c = np.concatenate(fleet_Lf)
+        del fleet_Lf
+        units_c = R['units'][cand].astype(int)
+        S_uncoord = S_after.copy()
+        order, K, curve = choose_fleet(S_flex, Lf_c, units_c, cal, cfg)
+        sel = np.sort(order[:K])
+        drop = np.setdiff1d(np.arange(len(cand)), sel)
+        net_sel, dis_sel = fleet_dispatch(S_flex, Lf_c, units_c, sel, cal, cfg)
+        S_after = S_after - S_after_cand + net_sel.sum(0, dtype=np.float64) + Lf_c[drop].sum(0, dtype=np.float64)
+        for idx, nets in ((sel, net_sel), (drop, None)):
+            for a in range(0, len(idx), CHUNK):
+                j = idx[a:a + CHUNK]
+                rows = cand[j]
+                Lf = Lf_c[j].astype(np.float64)
+                net = Lf if nets is None else nets[a:a + CHUNK].astype(np.float64)
+                if nets is None:                          # not in the fleet: no battery, flexibility only
+                    R['units'][rows] = 0
+                    ex, fl = excess[rows], R['flex_kw'][rows]
+                    action[rows] = np.where((ex >= min_need) & has_lever_all[rows] & (fl > 0.05), 'Flex only',
+                                            np.where(ex > 0, 'Monitor', 'No action'))
+                    R['kwh_shifted'][rows] = shed_kwh[rows]
+                    R['cycles'][rows] = 0
+                else:
+                    u = R['units'][rows]
+                    R['kwh_shifted'][rows] = shed_kwh[rows] + dis_sel[a:a + CHUNK]
+                    R['cycles'][rows] = dis_sel[a:a + CHUNK] / np.maximum(u * bcfg['unit_kwh'], 1e-9)
+                R['kwh_solar_charged'][rows] = 0              # the fleet charges from the grid in its chosen hours
+                for s in ('summer', 'winter'):
+                    R[f'cp_{s}_after'][rows] = net[:, cp_idx[s]].mean(1)
+                R['peak_kw_after'][rows] = net.max(1)
+                R['bill_after'][rows] = net @ price
+                L = np.asarray(L_all[rows], dtype=np.float64)
+                Lb = {k: X.reshape(len(j), cal.D, 24) for k, X in (('before', L), ('flex', Lf), ('after', net))}
+                ba = net.astype(np.float32) @ cal.onehot
+                for q, i in enumerate(rows):
+                    cid = int(ids[i])
+                    if action[i] in ('No action', 'Monitor'):
+                        profiles.pop(cid, None)
+                    else:
+                        profiles[cid] = {s: {k: np.round(Lb[k][q, td[s]].mean(0), 2).tolist() for k in Lb}
+                                         for s in ('summer', 'winter')}
+                    if nets is None:
+                        buckets.pop(cid, None)
+                    elif cid in buckets:
+                        buckets[cid]['a'] = np.round(ba[q], 1).tolist()
+        del Lf_c, net_sel
+        fleet = {'candidates': int(len(cand)), 'selected_homes': int(K), 'selected_units': int(units_c[sel].sum()),
+                 'knee_share': cfg['fleet'].get('knee_share', 0.95), 'curve': curve,
+                 'lp_peak_mw': next(c['peak_mw'] for c in curve if c['homes'] == K),
+                 'peak_mw_after': round(S_after.max() / 1000, 3),
+                 'uncoordinated': {'homes': int(len(cand)), 'units': int(units_c.sum()),
+                                   'peak_mw_after': round(S_uncoord.max() / 1000, 3)}}
+        print(f"  fleet: {K:,} of {len(cand):,} candidate homes ({fleet['selected_units']:,} units); system peak "
+              f"{S_uncoord.max() / 1000:.2f} MW uncoordinated -> {S_after.max() / 1000:.2f} MW coordinated "
+              f"(best possible {min(c['peak_mw'] for c in curve):.2f})  ({time.time() - t0:.0f}s)")
 
     # Pass 3: economics, scores, channels.
     units = R['units'].astype(int)
@@ -651,6 +862,7 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
 
     summary = build_summary(recs, P, R, cp, typical, windows, binding, S, S_flex, S_after, S_naive, cal, cfg, fin_out,
                             relief, units, actionable, batt_kw, p_elec)
+    summary['fleet'] = fleet
     recs.sort(key=lambda r: r['rank'])
     listed = recs
     if max_customers and len(recs) > max_customers:
@@ -822,6 +1034,14 @@ def write_outputs(data, recs, out_dir: Path, template: Path):
         tariff = data['config']['economics'].get('tariff')
         if tariff and PAGE_RATE_LABEL in page:        # name the rate actually used in the Assumptions table
             page = page.replace(PAGE_RATE_LABEL, json.dumps(tariff['label']))
+        fleet = data['summary'].get('fleet')
+        if fleet:                                     # describe the fleet dispatch instead of per-home dispatch
+            for old, new in PAGE_FLEET_TEXT:
+                if old in page:
+                    page = page.replace(old, new.replace('{homes}', f"{fleet['selected_homes']:,}").replace(
+                        '{cands}', f"{fleet['candidates']:,}").replace('{pct}', f"{fleet['knee_share']:.0%}"))
+                else:
+                    print(f'  note: page text not found, left as is: {old[:60]}...')
         (out_dir / 'index.html').write_text(page)
         print(f'  page: {out_dir / "index.html"} ({len(page) / 1e6:.1f} MB)')
 
