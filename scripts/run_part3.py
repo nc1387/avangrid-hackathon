@@ -413,6 +413,61 @@ def battery(Lf, units, cal, cfg):
             'solar_charged': solar_used.sum(1)}
 
 
+# ---------------------------------------------------------------------------------------------- cluster table
+# Notebook 70's eight behavioural clusters (k-means on continuous features only). Each description says what the
+# cluster was named for: notebook 70 names clusters in this order, each from the remaining clusters' medians.
+CLUSTER_TEXT = {
+    'Solar homes': 'Most summer midday hours with near-zero grid use: solar panels cover daytime use.',
+    'Seasonal / part-year vacant': 'Months of near-zero use and the largest winter-summer swing: seasonal or '
+                                   'part-year homes.',
+    'Electric-heated, winter-peaking': 'Strongest heating response for their size: electric heat drives their '
+                                       'winter peaks.',
+    'Summer peakers (heavy AC)': 'Strongest cooling response for their size: air conditioning drives summer '
+                                 'afternoon and evening peaks.',
+    'Evening peakers': 'Highest share of use from 5 to 9 pm.',
+    'Small, flat, low-AC': 'Lowest average use, with a flat daily profile and little cooling.',
+    'Large, steady homes': 'High average use with a high load factor: use stays high around the clock.',
+    'Daytime-active, AC': 'The remaining cluster: more daytime use than typical, with air conditioning.',
+}
+CLUSTER_FLAGS = [   # (label, test on customers.csv) - Part 1 appliance inventory flags (notebook 60)
+    ('AC (any)', lambda c: c['ac_flag']),
+    ('Central AC', lambda c: c['ac_type'] == 'central likely'),
+    ('Electric heat (any)', lambda c: c['elec_heat_flag']),
+    ('Electric heat as main source', lambda c: c['elec_heat_primary_flag']),
+    ('Heat pump likely', lambda c: c['heating_type'] == 'heat pump likely'),
+    ('Water heater', lambda c: c['water_heater_flag']),
+    ('Pool', lambda c: c['pool_flag']),
+    ('Hot tub', lambda c: c['hot_tub_flag']),
+    ('EV charging (Level 1 or 2)', lambda c: c['ev_charging_type'] != 'none detected'),
+    ('Solar (PV list or model)', lambda c: c['solar']),
+    ('Solar + battery', lambda c: c['solar_battery_flag']),
+]
+
+
+def as_bool(x) -> np.ndarray:
+    """A True/False column read from CSV (bool, or the strings 'true'/'false') as a boolean array."""
+    x = pd.Series(x)
+    return x.to_numpy(bool) if x.dtype == bool else x.astype(str).str.lower().isin(['true', '1']).to_numpy()
+
+
+def cluster_summary(cust: pd.DataFrame, units: np.ndarray, batt_sav: np.ndarray) -> dict:
+    """One row per notebook 70 cluster: description, size, battery homes and their average year-1 savings, and the
+    share of homes flagged for each appliance."""
+    seg = cust['segment'].astype(str).to_numpy()
+    flags = {lab: as_bool(f(cust)) for lab, f in CLUSTER_FLAGS}
+    rows = []
+    for name in sorted(set(seg), key=lambda s: -(seg == s).sum()):
+        m = seg == name
+        b = m & (units > 0)
+        rows.append({'cluster': name, 'description': CLUSTER_TEXT.get(name, ''), 'homes': int(m.sum()),
+                     'share': round(float(m.mean()), 4), 'battery_homes': int(b.sum()),
+                     'avg_battery_savings': round(float(batt_sav[b].mean()), 0) if b.any() else None,
+                     'flags': {lab: round(float(v[m].mean()), 4) for lab, v in flags.items()}})
+    return {'flags': [lab for lab, _ in CLUSTER_FLAGS], 'rows': rows,
+            'note': "Notebook 70's eight behavioural clusters (k-means on continuous usage features). Battery "
+                    'savings are year-1 bill savings from the battery, averaged over the cluster’s battery homes.'}
+
+
 # ---------------------------------------------------------------------------------------------- fleet optimization
 # Per-home dispatch (battery() above) charges every battery in the same hours, which can create a new system peak.
 # Instead the fleet is dispatched as one: each day, a small linear program chooses the fleet's hourly charge c_h and
@@ -863,6 +918,7 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
     summary = build_summary(recs, P, R, cp, typical, windows, binding, S, S_flex, S_after, S_naive, cal, cfg, fin_out,
                             relief, units, actionable, batt_kw, p_elec)
     summary['fleet'] = fleet
+    summary['clusters'] = cluster_summary(cust, units, batt_sav)
     recs.sort(key=lambda r: r['rank'])
     listed = recs
     if max_customers and len(recs) > max_customers:

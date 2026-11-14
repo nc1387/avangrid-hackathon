@@ -26,6 +26,10 @@ smaller file.
 Assumptions (battery spec, 3 kVA screen, flexibility shares, rates, incentives, finance, score weights) are in
 `config/part3_assumptions.json`.
 
+**Cluster Analysis tab** (second from the left): notebook 70's eight behavioural clusters, with a short description,
+size and share of customers, battery homes and their average year-1 battery savings on the page's rate, and the
+share of homes flagged for each appliance (Part 1 inventory). Built by `cluster_summary` in `scripts/run_part3.py`.
+
 **Fleet dispatch.** With `fleet.optimize` on (the default), the battery candidates are dispatched as one fleet: a
 daily linear program sets the fleet's charging and discharging to minimize the system peak, and the number of
 batteries is the knee of the peak-versus-fleet-size curve (the smallest fleet within `knee_share`, 95%, of the best
