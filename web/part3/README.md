@@ -41,7 +41,7 @@ rates with that utility's residential time-varying rate from `data/tariffs/resid
 Day/Night rate, SC 8, since its time-of-use rate needs 35,000 kWh a year). Delivery and supply are combined: the
 page's supply price is the rate's off-peak supply, and on- and off-peak prices carry the rest, so every hour's
 total matches the utility's rate. Notebook 99 builds one page per utility into `onedrive-export/Data/part3/<utility>/`
-and a starting page, `onedrive-export/Data/part3/index.html`, with a drop-down to switch between them. The Methodology tab documents each step and formula.
+and a starting page, `onedrive-export/Data/part3/index.html`, with a drop-down to switch between them (NYSEG is shown first). The Methodology tab documents each step and formula.
 
 ## Part 1 and 2 fields used
 
