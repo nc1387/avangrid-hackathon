@@ -49,8 +49,21 @@ battery life at the discount rate, declining with degradation, less the upfront 
 and follow the Assumptions tab, as does the lower annual system peak (the average of the runs' peaks). The
 Portfolio figures use the config's thresholds and rates; the Scenario Analysis inputs don't change them.
 
-**NPV-maximizing battery candidate threshold** (Scenario Analysis, and a second line on the Battery Program
-scatter). Recalculated whenever an Assumptions or Scenario Analysis input is applied. For each threshold, the
+**Battery candidate threshold used by the Portfolio and Battery Program tabs:** the one that maximizes project NPV
+or, when no threshold makes batteries pay, the lowest one at which NPV is still at least zero (0.5 kW minimum).
+`scripts/run_part3.py` finds it with the default inputs (`npv_threshold`) and rebuilds the fleet with the homes that
+clear it, so the peak-day chart, the annual peak and the Customer List match it; the page recalculates it, the
+candidates, upfront investment and NPV whenever an input is applied, and notes when the chart and peak are still for
+the threshold it was built with. With the defaults on NYSEG no threshold makes batteries pay, and 1.315 kW (293
+candidates) is the lowest that keeps NPV at or above zero. The Portfolio tab notes that NPV counts only battery
+hardware, installation and avoided capacity value, not other things Avangrid may value such as grid flexibility or
+lower carbon emissions.
+
+**Fleet dispatch, second stage.** Each day's linear program first minimizes the peak, then, keeping that peak, moves
+charging to the lowest-load hours and discharging to the highest. Without it a small fleet could charge during other
+peak-window hours, since only the single highest hour counted.
+
+**NPV-maximizing battery candidate threshold** (Scenario Analysis). Recalculated whenever an Assumptions or Scenario Analysis input is applied. For each threshold, the
 candidates are the fleet's homes whose one unit cuts their peak-hour load by at least that much in the per-home
 simulation (`battery_points` in the summary carries what the page needs). Each counts at its group's acceptance rate:
 the present value of its battery's reduction at the system peak hours, times the avoided capacity value, less its

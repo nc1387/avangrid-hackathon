@@ -5,13 +5,11 @@
 # Run from anywhere:
 #     scripts/rebuild_all.sh            # all notebooks
 #     scripts/rebuild_all.sh 6          # resume from step 6 (see the step list below)
-#     FAST=1 scripts/rebuild_all.sh     # run notebook 55 (final models only, ~6 min) instead of 50 (~2 hours)
 #
 # Notebook 10 writes the raw meter data into avangrid.db only when the file doesn't exist yet, so to
 # pick up new or changed meter data, move the old onedrive-export/Data/avangrid.db aside first.
 # Stop anything that has avangrid.db open (open notebooks, scripts) before running.
-# Notebook 50 holds every long-running model and takes about 2 hours; the rest take about 15 minutes together.
-# Notebook 55 fits only the models notebook 50 settled on and writes the same outputs in about 6 minutes.
+# Notebook 55 fits the EV, heat pump and solar models (about 6 minutes); the whole build takes about 40 minutes.
 # Each notebook is executed in place (outputs saved); its log goes to
 # onedrive-export/Data/results/rebuild_logs/<start time>/.
 
@@ -24,7 +22,7 @@ STEPS=(
   30_time-of-day-and-weather.ipynb
   40_customer-features.ipynb
   45_change-detection.ipynb
-  50_technology-models.ipynb
+  55_technology-models_no_experimentation.ipynb
   60_appliances.ipynb
   70_segmentation.ipynb
   75_segmentation-with-appliances.ipynb
@@ -36,10 +34,6 @@ STEPS=(
 )
 # Not run: scripts/review_sample.py draws a new blind hand-labelling sample and overwrites the key of the
 # existing one (results/review_key.parquet), so run it only when starting a new review.
-
-if [[ "${FAST:-0}" == 1 ]]; then
-  STEPS=("${STEPS[@]/50_technology-models.ipynb/55_technology-models_no_experimentation.ipynb}")
-fi
 
 START=${1:-1}
 LOG_DIR="onedrive-export/Data/results/rebuild_logs/$(date +%Y-%m-%d_%H%M%S)"
@@ -53,7 +47,7 @@ for i in "${!STEPS[@]}"; do
   log="$LOG_DIR/$(printf '%02d' "$n")_${target%.ipynb}.log"
   echo "[$(date +%H:%M:%S)] step $n/${#STEPS[@]}: $target"
   s=$(date +%s)
-  # Up to 2 hours per cell: notebook 50's longest stages run for about half an hour each.
+  # Up to 2 hours per cell.
   if ! python3 -m avangrid run "$target" --timeout 7200 > "$log" 2>&1; then
     echo "FAILED at step $n ($target). Last lines of $log:"
     tail -20 "$log"

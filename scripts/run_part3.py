@@ -500,8 +500,12 @@ def cluster_summary(cust: pd.DataFrame, units: np.ndarray, L_all: np.ndarray, to
 # discharge follows the fleet's hourly shape, up to its own load; its charge follows the fleet's charge shape), and
 # every result (system peak, bills, relief) is computed from the homes' own net loads.
 
-def fleet_day_lp(s, A, E, C, eff):
-    """One day's min-peak dispatch. s: system load (24), A: dischargeable kW (24), E: usable kWh, C: charge cap kW."""
+def fleet_day_lp(s, A, E, C, eff, flatten=True):
+    """One day's min-peak dispatch. s: system load (24), A: dischargeable kW (24), E: usable kWh, C: charge cap kW.
+
+    Stage 1 minimizes the day's peak T. It is indifferent to every hour below the peak, so a small fleet may charge in
+    other high-load hours. With `flatten`, stage 2 keeps the peak at T and minimizes sum_h s_h (c_h - d_h) / max(s):
+    charging moves to the lowest-load hours and discharging to the highest."""
     from scipy.optimize import linprog
     leg = np.sqrt(eff)
     nv = 73                                               # c (24), d (24), e (24), T
@@ -520,7 +524,17 @@ def fleet_day_lp(s, A, E, C, eff):
                 method='highs')
     if r.status != 0:
         raise RuntimeError(f'fleet dispatch LP failed: {r.message}')
-    return r.x[:24], r.x[24:48], r.x[-1]
+    T = r.x[-1]
+    if flatten and E > 0:
+        w = np.asarray(s, float) / max(float(np.max(s)), 1e-9)
+        cost2 = np.zeros(nv)
+        cost2[:24], cost2[24:48] = w, -w
+        bounds[-1] = (None, T + 1e-6 * max(1.0, abs(T)))
+        r2 = linprog(cost2, A_ub=A_ub, b_ub=-np.asarray(s, float), A_eq=A_eq, b_eq=np.zeros(24), bounds=bounds,
+                     method='highs')
+        if r2.status == 0:
+            return r2.x[:24], r2.x[24:48], T
+    return r.x[:24], r.x[24:48], T
 
 
 def fleet_inputs(Lf_c, units_c, bcfg, idx=None):
@@ -539,7 +553,7 @@ def fleet_inputs(Lf_c, units_c, bcfg, idx=None):
 def fleet_peak(S0d, A, E, C, eff, days):
     """Annual system peak (kW) with the fleet dispatched on `days`; other days keep their load."""
     rest = np.setdiff1d(np.arange(len(S0d)), days)
-    peaks = [fleet_day_lp(S0d[d], A[d], E, C, eff)[2] for d in days]
+    peaks = [fleet_day_lp(S0d[d], A[d], E, C, eff, flatten=False)[2] for d in days]
     return max(max(peaks), S0d[rest].max() if len(rest) else 0.0)
 
 
@@ -714,6 +728,47 @@ def adoption_scenario(S, L_all, adays, ahrs, fx_rows, fx_dF, fleet_ctx, batt_sav
             **{f'profile_{s_}': (Sm[pos[s_]].mean(0) / 1000).round(3).tolist() for s_ in td}}
 
 
+def npv_threshold(summary, cfg):
+    """The battery candidate threshold the page uses (the same calculation as __optTau in the page): the one that
+    maximizes project NPV, or, if no threshold makes batteries pay, the lowest one at which NPV is still >= 0.
+
+    A candidate counts if its one unit cuts its peak-hour load by at least the threshold in the per-home simulation.
+    Its contribution is its group's acceptance rate x (present value of its reduction at the system peak hours x the
+    avoided capacity value - installed cost); flexibility adds the same value at every threshold."""
+    bp, si = summary.get('battery_points'), summary.get('scenario_inputs')
+    if not bp or not bp['points']:
+        return None
+    a, f = cfg['adoption'], cfg['finance']
+    V = cfg['economics']['avoided_capacity_per_kw_yr']
+    hw = f['battery_capex_per_unit']
+    pv = sum((1 - f['degradation']) ** y / (1 + f['discount_rate']) ** (y + 1) for y in range(f['life_years']))
+
+    def cost(u):
+        return u * hw + f['install_base'] + (u - 1) * f['install_per_extra_unit']
+
+    ck = bp['candidate_kw']
+    H = sorted(({'g': z[5], 'c': (a['likely_rate'] if z[0] > a['likely_threshold'] else a['less_likely_rate'])
+                 * (max(0, z[4]) * V * pv - cost(z[2]))} for z in bp['points'] if z[5] >= ck), key=lambda h: -h['g'])
+    flex_mw = si['flex_mw'] if si else 0.0
+    F = a.get('flex_share', 0.5) * flex_mw * 1e3 * V * pv
+    bounds = [((H[0]['g'] if H else ck) + .01, 0, F)]     # (threshold, homes included, NPV)
+    cum = 0.0
+    for k, h in enumerate(H):
+        cum += h['c']
+        if k == len(H) - 1 or H[k + 1]['g'] < h['g']:
+            bounds.append((h['g'], k + 1, F + cum))
+    best = bounds[0]
+    for b in bounds[1:]:
+        if b[2] > best[2]:
+            best = b
+    rule = 'max'
+    if best[1] == 0:
+        ok = [b for b in bounds if b[2] >= 0]
+        lo = ok[-1] if ok else bounds[0]
+        best, rule = (lo, 'breakeven') if lo[1] > 0 else (bounds[0], 'none')
+    return {'tau': best[0], 'rule': rule, 'npv': round(best[2]), 'candidates': best[1], 'flex_mw': flex_mw}
+
+
 def battery_points(units, batt_sav, inc1, batt_kw, batt_sys, g1, cfg):
     """Every battery candidate, for the Battery Program scatter and the page's NPV-maximizing threshold search:
     [year-1 savings (battery bill savings + year-1 performance incentive), peak-hour reduction at the home's peak
@@ -735,7 +790,7 @@ def battery_points(units, batt_sav, inc1, batt_kw, batt_sys, g1, cfg):
 
 # ---------------------------------------------------------------------------------------------- main run
 def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLATE, out_dir: Path | None = None,
-        synthetic: bool = False):
+        synthetic: bool = False, carry: dict | None = None):
     t0 = time.time()
     out_dir = out_dir or in_dir
     L_all = np.load(in_dir / 'hourly_kwh.npy', mmap_mode='r')
@@ -897,6 +952,9 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
         S_uncoord = S_after.copy()
         order, K, curve, cover = choose_fleet(S_flex, Lf_c, units_c, cal, cfg)
         sel = np.sort(order[:K])
+        min_kw = cfg['fleet'].get('min_cp_kw')            # the NPV-selected candidate threshold (see main)
+        if min_kw:
+            sel = sel[np.round(R['bess1_cp_kw'][cand[sel]], 3) >= min_kw]
         drop = np.setdiff1d(np.arange(len(cand)), sel)
         net_sel, dis_sel = fleet_dispatch(S_flex, Lf_c, units_c, sel, cal, cfg)
         S_after = S_after - S_after_cand + net_sel.sum(0, dtype=np.float64) + Lf_c[drop].sum(0, dtype=np.float64)
@@ -950,7 +1008,8 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
                                     for m in [np.isin(np.arange(len(cand)), ix) & (units_c == n_u)] if m.any()],
                  'uncoordinated': {'homes': int(len(cand)), 'units': int(units_c.sum()),
                                    'peak_mw_after': round(S_uncoord.max() / 1000, 3)}}
-        print(f"  fleet: {K:,} of {len(cand):,} candidate homes ({fleet['selected_units']:,} units); system peak "
+        fleet['program_homes'] = int(len(sel))              # differs from the knee's K when min_cp_kw is set
+        print(f"  fleet: {len(sel):,} of {len(cand):,} candidate homes ({fleet['selected_units']:,} units); system peak "
               f"{S_uncoord.max() / 1000:.2f} MW uncoordinated -> {S_after.max() / 1000:.2f} MW coordinated "
               f"(best possible {min(c['peak_mw'] for c in curve):.2f})  ({time.time() - t0:.0f}s)")
 
@@ -1085,6 +1144,9 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
         del fleet_ctx, fx_dF
     summary['battery_points'] = battery_points(units, batt_sav, inc1, batt_kw, R[f'batt_cp_{binding}'], R['bess1_cp_kw'], cfg)
     summary['clusters'] = cluster_summary(cust, units, L_all, td, cal.D)
+    summary['npv_threshold'] = npv_threshold(summary, cfg)
+    if carry:                                              # from the first pass (see main)
+        summary.update(carry)
     recs.sort(key=lambda r: r['rank'])
     listed = recs
     if max_customers and len(recs) > max_customers:
@@ -1286,7 +1348,18 @@ def main(argv=None):
     if args.utility:
         cfg = utility_rates(cfg, args.utility, args.plan, args.region)
         print(f"rates: {cfg['economics']['tariff']['label']}")
-    run(args.input, cfg, args.max_customers, out_dir=args.output, synthetic=args.synthetic)
+    data = run(args.input, cfg, args.max_customers, out_dir=args.output, synthetic=args.synthetic)
+    nt = data['summary'].get('npv_threshold')
+    if (cfg.get('fleet', {}).get('optimize') and nt and nt['rule'] != 'none'
+            and nt['tau'] > cfg['screening']['min_battery_cp_kw'] + 1e-9):
+        # Second pass: the fleet is the first pass's fleet homes that clear the selected threshold. The page keeps the
+        # first pass's candidates, so it can search every threshold again when an input changes.
+        print(f"candidate threshold {nt['tau']:.3f} kW ({'maximizes NPV' if nt['rule'] == 'max' else 'lowest with NPV >= 0'}): "
+              f"{nt['candidates']:,} homes; rebuilding the fleet with them")
+        cfg2 = json.loads(json.dumps(cfg))
+        cfg2['fleet']['min_cp_kw'] = nt['tau']
+        run(args.input, cfg2, args.max_customers, out_dir=args.output, synthetic=args.synthetic,
+            carry={'battery_points': data['summary']['battery_points'], 'npv_threshold': nt})
 
 
 if __name__ == '__main__':

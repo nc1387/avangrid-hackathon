@@ -46,8 +46,9 @@ def main(argv=None):
         print('Cache cleared.')
     elif args.command == 'run':
         from . import notebooks
-        ok = all([notebooks.run(nb, timeout=args.timeout) for nb in args.notebooks])
-        sys.exit(0 if ok else 1)
+        for nb in args.notebooks:                # in order; stop at the first failure
+            if not notebooks.run(nb, timeout=args.timeout):
+                sys.exit(1)
     elif args.command == 'benchmark':
         from .benchmark import run_benchmark
         run_benchmark()

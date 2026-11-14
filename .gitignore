@@ -15,8 +15,8 @@ __pycache__/
 # Ignore Jupyter autosave checkpoints
 .ipynb_checkpoints/
 
-# Ignore Jupyter autosave checkpoints
-archive/
+# The full model-comparison notebook (about 2 hours); notebook 55 fits the models it settled on
+50_technology-models.ipynb
 
 # Local secrets (API keys)
 .env
