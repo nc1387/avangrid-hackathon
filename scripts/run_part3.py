@@ -450,22 +450,41 @@ def as_bool(x) -> np.ndarray:
     return x.to_numpy(bool) if x.dtype == bool else x.astype(str).str.lower().isin(['true', '1']).to_numpy()
 
 
-def cluster_summary(cust: pd.DataFrame, units: np.ndarray, batt_sav: np.ndarray) -> dict:
-    """One row per notebook 70 cluster: description, size, battery homes and their average year-1 savings, and the
-    share of homes flagged for each appliance."""
+def cluster_summary(cust: pd.DataFrame, units: np.ndarray, L_all: np.ndarray, top_days: dict, n_days: int) -> dict:
+    """One row per notebook 70 cluster: description, size, battery homes, typical hourly use (the cluster's average of
+    each home's median and 75th percentile hourly kWh, over the year), the cluster's combined peak in summer and
+    winter (its homes' load added up, averaged over the season's 20 highest system days, highest hour; the same days
+    as the page's peak-day chart), and the share of homes flagged for each appliance. Loads are today's, before any
+    flexibility or batteries."""
     seg = cust['segment'].astype(str).to_numpy()
+    names = sorted(set(seg), key=lambda s: -(seg == s).sum())
+    g = pd.Series(seg).map({name: k for k, name in enumerate(names)}).to_numpy()
+    n = len(seg)
+    med, p75 = np.zeros(n), np.zeros(n)
+    prof = {s: np.zeros((len(names), 24)) for s in top_days}
+    for a in range(0, n, 2000):
+        L = np.asarray(L_all[a:a + 2000], dtype=np.float64)
+        med[a:a + len(L)] = np.median(L, 1)
+        p75[a:a + len(L)] = np.percentile(L, 75, axis=1)
+        Ld = L.reshape(len(L), n_days, 24)
+        for s, days in top_days.items():
+            np.add.at(prof[s], g[a:a + len(L)], Ld[:, days].mean(1))
     flags = {lab: as_bool(f(cust)) for lab, f in CLUSTER_FLAGS}
     rows = []
-    for name in sorted(set(seg), key=lambda s: -(seg == s).sum()):
+    for k, name in enumerate(names):
         m = seg == name
-        b = m & (units > 0)
         rows.append({'cluster': name, 'description': CLUSTER_TEXT.get(name, ''), 'homes': int(m.sum()),
-                     'share': round(float(m.mean()), 4), 'battery_homes': int(b.sum()),
-                     'avg_battery_savings': round(float(batt_sav[b].mean()), 0) if b.any() else None,
+                     'share': round(float(m.mean()), 4), 'battery_homes': int((m & (units > 0)).sum()),
+                     'avg_median_kwh': round(float(med[m].mean()), 3), 'avg_p75_kwh': round(float(p75[m].mean()), 3),
+                     'peak_mw_summer': round(float(prof['summer'][k].max()) / 1000, 2),
+                     'peak_mw_winter': round(float(prof['winter'][k].max()) / 1000, 2),
                      'flags': {lab: round(float(v[m].mean()), 4) for lab, v in flags.items()}})
     return {'flags': [lab for lab, _ in CLUSTER_FLAGS], 'rows': rows,
-            'note': "Notebook 70's eight behavioural clusters (k-means on continuous usage features). Battery "
-                    'savings are year-1 bill savings from the battery, averaged over the cluster’s battery homes.'}
+            'note': "Notebook 70's eight behavioural clusters (k-means on continuous usage features). Median and 75th "
+                    "percentile kWh: each home's hourly use over the year, averaged over the cluster's homes. Combined "
+                    "peak: the cluster's homes added together, averaged over the season's 20 highest system days (the "
+                    "days in the Portfolio tab's peak-day chart), at the highest hour. All loads are today's, before "
+                    "flexibility or batteries."}
 
 
 # ---------------------------------------------------------------------------------------------- fleet optimization
@@ -525,7 +544,9 @@ def fleet_peak(S0d, A, E, C, eff, days):
 
 
 def choose_fleet(S_flex, Lf_c, units_c, cal, cfg):
-    """Rank candidates, trace the peak-versus-fleet-size curve and pick the knee. Returns (order, K, curve)."""
+    """Rank candidates, trace the peak-versus-fleet-size curve and pick the knee. Returns (order, K, curve, cover):
+    cover is each candidate's ranking measure, the kW its batteries can cover at each day's system peak hour
+    (averaged over the curve days)."""
     b, fcfg = cfg['battery'], cfg['fleet']
     eff = b['round_trip_eff']
     S0d = S_flex.reshape(cal.D, 24)
@@ -560,7 +581,7 @@ def choose_fleet(S_flex, Lf_c, units_c, cal, cfg):
         curve.append({'homes': int(k), 'units': int(units_c[sel].sum()),
                       'mwh': round(float((units_c[sel] * b['unit_kwh']).sum()) / 1000, 2),
                       'peak_mw': round(cache[k] / 1000, 3), 'share_of_best_cut': round(share(k), 3)})
-    return order, hi, curve
+    return order, hi, curve, cover
 
 
 def fleet_dispatch(S_flex, Lf_c, units_c, sel, cal, cfg):
@@ -749,7 +770,7 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
         del fleet_Lf
         units_c = R['units'][cand].astype(int)
         S_uncoord = S_after.copy()
-        order, K, curve = choose_fleet(S_flex, Lf_c, units_c, cal, cfg)
+        order, K, curve, cover = choose_fleet(S_flex, Lf_c, units_c, cal, cfg)
         sel = np.sort(order[:K])
         drop = np.setdiff1d(np.arange(len(cand)), sel)
         net_sel, dis_sel = fleet_dispatch(S_flex, Lf_c, units_c, sel, cal, cfg)
@@ -795,6 +816,12 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
                  'knee_share': cfg['fleet'].get('knee_share', 0.95), 'curve': curve,
                  'lp_peak_mw': next(c['peak_mw'] for c in curve if c['homes'] == K),
                  'peak_mw_after': round(S_after.max() / 1000, 3),
+                 'cutoff_kw': round(float(cover[order[K - 1]]), 3) if K else None,
+                 'cover_by_group': [{'group': g, 'units': n_u, 'homes': int(m.sum()),
+                                     'median_kw': round(float(np.median(cover[m])), 2),
+                                     'min_kw': round(float(cover[m].min()), 2), 'max_kw': round(float(cover[m].max()), 2)}
+                                    for g, ix in (('selected', sel), ('left out', drop)) for n_u in (1, 2)
+                                    for m in [np.isin(np.arange(len(cand)), ix) & (units_c == n_u)] if m.any()],
                  'uncoordinated': {'homes': int(len(cand)), 'units': int(units_c.sum()),
                                    'peak_mw_after': round(S_uncoord.max() / 1000, 3)}}
         print(f"  fleet: {K:,} of {len(cand):,} candidate homes ({fleet['selected_units']:,} units); system peak "
@@ -918,7 +945,7 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
     summary = build_summary(recs, P, R, cp, typical, windows, binding, S, S_flex, S_after, S_naive, cal, cfg, fin_out,
                             relief, units, actionable, batt_kw, p_elec)
     summary['fleet'] = fleet
-    summary['clusters'] = cluster_summary(cust, units, batt_sav)
+    summary['clusters'] = cluster_summary(cust, units, L_all, td, cal.D)
     recs.sort(key=lambda r: r['rank'])
     listed = recs
     if max_customers and len(recs) > max_customers:

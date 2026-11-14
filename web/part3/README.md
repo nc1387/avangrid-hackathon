@@ -27,14 +27,24 @@ Assumptions (battery spec, 3 kVA screen, flexibility shares, rates, incentives, 
 `config/part3_assumptions.json`.
 
 **Cluster Analysis tab** (second from the left): notebook 70's eight behavioural clusters, with a short description,
-size and share of customers, battery homes and their average year-1 battery savings on the page's rate, and the
-share of homes flagged for each appliance (Part 1 inventory). Built by `cluster_summary` in `scripts/run_part3.py`.
+size and share of customers, battery homes, the average of each home's median and 75th percentile hourly kWh over
+the year, the cluster's combined peak in summer and winter (its homes' load added up, averaged over the season's 20
+highest system days, as in the Portfolio tab's peak-day chart, at the highest hour; today's load, before flexibility
+or batteries), and the share of homes flagged for each appliance (Part 1 inventory). Built by `cluster_summary` in
+`scripts/run_part3.py`.
+
+**Assumptions tab.** Edits don't take effect until **Re-Calculate** is clicked; it then reruns the financial model and
+the ranking for every page. **Discard changes** goes back to the inputs in use.
 
 **Fleet dispatch.** With `fleet.optimize` on (the default), the battery candidates are dispatched as one fleet: a
 daily linear program sets the fleet's charging and discharging to minimize the system peak, and the number of
 batteries is the knee of the peak-versus-fleet-size curve (the smallest fleet within `knee_share`, 95%, of the best
 achievable peak). On the real data that is 7,667 of 15,034 candidate homes, and the annual peak falls from 78.0 to
 59.8 MW (74.8 MW when every candidate charges in the same hours). Set `optimize` to false for per-home dispatch.
+Only the fleet is optimized: whether a home gets flexibility only, one unit or two is set by the fixed thresholds in
+`screening` (step 1), and the optimization then picks which candidates join the fleet. The ranking implies a cutoff:
+on the real data, a candidate joins if its batteries can cover at least 2.07 kW at the system-peak hour (averaged over
+the 60 highest days). Notebook 99, section 3, sets out the rules, the linear program and the cutoff.
 
 **Real utility rates.** `python scripts/run_part3.py --utility cmp` (or `nyseg`, `rge`, `ui`) replaces the config's
 rates with that utility's residential time-varying rate from `data/tariffs/residential_tariffs.json` (NYSEG uses its

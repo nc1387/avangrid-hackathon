@@ -18,6 +18,7 @@ section: what was tested or dropped at that step, and why.
 | `40_customer-features` | Full-year features (`customer_features`), labels, peer groups and `peer_index`, cached arrays, `customer_status` | ~1 min |
 | `45_change-detection` | Stabilization length (`customer_stability`) and mid-year change detection (`change_points`), used as candidate features | ~12 min |
 | `50_technology-models` | **All long-running models**: PU method test on PV, then EV, HP and PV side by side in five rounds of feature comparisons; `technology_predictions` and candidate lists | **~2 h** |
+| `55_technology-models_no_experimentation` | **Fast alternative to 50**: fits only the final EV, HP and PV models 50 settled on, without the comparisons; writes the same outputs (checked identical). Run 50 or 55, not both | ~6 min |
 | `60_appliances` | Appliance rules calibrated with simulated appliances; `appliance_inventory` | <1 min |
 | `70_segmentation` | k-means behavioural clusters, program segments, VAF scree plot; `customer_segments` | ~1 min |
 | `75_segmentation-with-appliances` | Clusters on the same features **plus the appliance inventory** (categorical), with k-prototypes; compared with notebook 70; `customer_segments_mixed` | ~2 min |
