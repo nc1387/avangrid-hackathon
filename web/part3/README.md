@@ -46,8 +46,18 @@ probability (the adopters are dispatched as their own fleet), and each home offe
 probability 50%. The other line shows 100% adoption. The top line's upfront investment (battery hardware +
 installation) and Project NPV (the avoided capacity value at the binding season's peak hours, × $/kW-yr, over the
 battery life at the discount rate, declining with degradation, less the upfront investment) are for expected adoption
-and follow the Assumptions tab. The Portfolio figures use the config's threshold and rates; the Scenario Analysis
-sliders don't change them.
+and follow the Assumptions tab, as does the lower annual system peak (the average of the runs' peaks). The
+Portfolio figures use the config's thresholds and rates; the Scenario Analysis inputs don't change them.
+
+**NPV-maximizing battery candidate threshold** (Scenario Analysis, and a second line on the Battery Program
+scatter). Recalculated whenever an Assumptions or Scenario Analysis input is applied. For each threshold, the
+candidates are the fleet's homes whose one unit cuts their peak-hour load by at least that much in the per-home
+simulation (`battery_points` in the summary carries what the page needs). Each counts at its group's acceptance rate:
+the present value of its battery's reduction at the system peak hours, times the avoided capacity value, less its
+installed cost. Flexibility adds the same value at every threshold, and the performance incentive, a transfer to the
+customer, isn't counted. Thresholds below the configured one aren't tested. At $100/kW-yr no threshold makes batteries
+pay; they start to above roughly $1,100/kW-yr. **Scenario Analysis** inputs, like the Assumptions tab's, take effect
+when **Re-Calculate** is clicked.
 
 **Performance incentive.** $200/kW of summer and $25/kW of winter peak-hour reduction a year for years 1-5, then
 $115 and $15 for years 6-10 (`economics` in the config; editable on the Assumptions tab). The utility pays it to the

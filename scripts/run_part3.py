@@ -714,13 +714,15 @@ def adoption_scenario(S, L_all, adays, ahrs, fx_rows, fx_dF, fleet_ctx, batt_sav
             **{f'profile_{s_}': (Sm[pos[s_]].mean(0) / 1000).round(3).tolist() for s_ in td}}
 
 
-def battery_points(units, batt_sav, inc1, batt_kw, cfg):
-    """Every battery candidate's year-1 savings (battery bill savings plus the year-1 performance incentive) and
-    peak-hour reduction, for the Battery Program scatter, and where the bill savings alone bunch for one- and two-unit
-    homes."""
+def battery_points(units, batt_sav, inc1, batt_kw, batt_sys, g1, cfg):
+    """Every battery candidate, for the Battery Program scatter and the page's NPV-maximizing threshold search:
+    [year-1 savings (battery bill savings + year-1 performance incentive), peak-hour reduction at the home's peak
+    season, units, bill savings alone, reduction at the system's binding peak hours, one-unit reduction in the per-home
+    simulation (what the candidate threshold is tested on)]; and where the bill savings bunch for one and two units."""
     m = units > 0
-    pts = [[round(float(x + i), 1), round(float(y), 3), int(u), round(float(x), 1)]
-           for x, i, y, u in zip(batt_sav[m], inc1[m], batt_kw[m], units[m])]
+    pts = [[round(float(x + i), 1), round(float(y), 3), int(u), round(float(x), 1), round(float(ys), 3),
+            round(float(g), 3)]
+           for x, i, y, u, ys, g in zip(batt_sav[m], inc1[m], batt_kw[m], units[m], batt_sys[m], g1[m])]
     modes = {}
     for n in (1, 2):
         v = np.round(batt_sav[m & (units == n)])
@@ -1081,7 +1083,7 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
               f"{ad['peak_mw_p95']:.2f}), {ad['cp_relief_mw']:.2f} MW off the {binding} peak hours  "
               f"({time.time() - t0:.0f}s)")
         del fleet_ctx, fx_dF
-    summary['battery_points'] = battery_points(units, batt_sav, inc1, batt_kw, cfg)
+    summary['battery_points'] = battery_points(units, batt_sav, inc1, batt_kw, R[f'batt_cp_{binding}'], R['bess1_cp_kw'], cfg)
     summary['clusters'] = cluster_summary(cust, units, L_all, td, cal.D)
     recs.sort(key=lambda r: r['rank'])
     listed = recs
