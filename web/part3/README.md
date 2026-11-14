@@ -33,8 +33,8 @@ highest system days, as in the Portfolio tab's peak-day chart, at the highest ho
 or batteries), and the share of homes flagged for each appliance (customer appliance classification). Built by `cluster_summary` in
 `scripts/run_part3.py`.
 
-**Adopter groups.** A battery candidate whose year-1 battery bill savings exceed the likely adoption threshold ($100
-a year) is a **likely adopter**; the rest are **less likely adopters** (`adoption` in the config). The Battery Program
+**Adopter groups.** A battery candidate whose year-1 savings (battery bill savings plus the performance incentive)
+exceed the likely adoption threshold ($100 a year) is a **likely adopter**; the rest are **less likely adopters** (`adoption` in the config). The Battery Program
 tab plots every candidate's year-1 savings (customer's perspective) against its projected peak reduction, with dotted
 lines at the likely adoption threshold and at the 0.5 kW battery candidate threshold (`screening.min_battery_cp_kw`,
 a number we set). The Customer List tags each candidate with its group. The threshold and each group's acceptance rate
@@ -49,7 +49,11 @@ battery life at the discount rate, declining with degradation, less the upfront 
 and follow the Assumptions tab. The Portfolio figures use the config's threshold and rates; the Scenario Analysis
 sliders don't change them.
 
-**Removed:** the performance incentive (set to 0 in the config and dropped from the Assumptions tab), the separate
+**Performance incentive.** $200/kW of summer and $25/kW of winter peak-hour reduction a year for years 1-5, then
+$115 and $15 for years 6-10 (`economics` in the config; editable on the Assumptions tab). The utility pays it to the
+customer as a discount amortized over their monthly bills, and it counts in the customer's year-1 savings.
+
+**Removed:** the separate
 "Enroll existing battery" action and program, the IRR and rebate columns, the rebate figures on the Portfolio and
 Battery Program tabs, and the Methodology tab.
 

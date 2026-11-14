@@ -642,7 +642,8 @@ def scenario_inputs(P, cp, recs, binding):
 def adoption_scenario(S, L_all, adays, ahrs, fx_rows, fx_dF, fleet_ctx, batt_sav, actionable, cal, cfg, td, cp_bind):
     """System load if only some customers take part, for the Portfolio tab: the average of `runs` random draws.
 
-    In each run every fleet home takes a battery with probability `likely_rate` if its year-1 battery savings exceed
+    In each run every fleet home takes a battery with probability `likely_rate` if its year-1 savings (`batt_sav`:
+    battery bill savings plus the performance incentive) exceed
     `likely_threshold` (a likely adopter) and `less_likely_rate` otherwise; the adopters are dispatched as their own
     fleet (fleet_day_lp on the fleet's totals) and use flexibility too, as their battery sizing assumes. Every other
     home offered flexibility enrolls with probability `flex_share`. The draws use `seed`, so results are the same on
@@ -713,11 +714,13 @@ def adoption_scenario(S, L_all, adays, ahrs, fx_rows, fx_dF, fleet_ctx, batt_sav
             **{f'profile_{s_}': (Sm[pos[s_]].mean(0) / 1000).round(3).tolist() for s_ in td}}
 
 
-def battery_points(units, batt_sav, batt_kw, cfg):
-    """Every battery candidate's year-1 battery savings and peak-hour reduction, for the Battery Program scatter, and
-    where savings bunch for one- and two-unit homes."""
+def battery_points(units, batt_sav, inc1, batt_kw, cfg):
+    """Every battery candidate's year-1 savings (battery bill savings plus the year-1 performance incentive) and
+    peak-hour reduction, for the Battery Program scatter, and where the bill savings alone bunch for one- and two-unit
+    homes."""
     m = units > 0
-    pts = [[round(float(x), 1), round(float(y), 3), int(u)] for x, y, u in zip(batt_sav[m], batt_kw[m], units[m])]
+    pts = [[round(float(x + i), 1), round(float(y), 3), int(u), round(float(x), 1)]
+           for x, i, y, u in zip(batt_sav[m], inc1[m], batt_kw[m], units[m])]
     modes = {}
     for n in (1, 2):
         v = np.round(batt_sav[m & (units == n)])
@@ -1068,7 +1071,7 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
     summary['fleet'] = fleet
     summary['scenario_inputs'] = scenario_inputs(P, cp, recs, binding)
     if fleet is not None and adopt_on:
-        ad = adoption_scenario(S, L_all, adays, ahrs, fx_rows, fx_dF, fleet_ctx, batt_sav, actionable, cal, cfg, td,
+        ad = adoption_scenario(S, L_all, adays, ahrs, fx_rows, fx_dF, fleet_ctx, batt_sav + inc1, actionable, cal, cfg, td,
                               cp_idx[binding])
         for s_ in ('summer', 'winter'):
             summary['system_profile_mw'][s_]['adopted'] = ad.pop(f'profile_{s_}')
@@ -1078,7 +1081,7 @@ def run(in_dir: Path, cfg: dict, max_customers: int = 0, template: Path = TEMPLA
               f"{ad['peak_mw_p95']:.2f}), {ad['cp_relief_mw']:.2f} MW off the {binding} peak hours  "
               f"({time.time() - t0:.0f}s)")
         del fleet_ctx, fx_dF
-    summary['battery_points'] = battery_points(units, batt_sav, batt_kw, cfg)
+    summary['battery_points'] = battery_points(units, batt_sav, inc1, batt_kw, cfg)
     summary['clusters'] = cluster_summary(cust, units, L_all, td, cal.D)
     recs.sort(key=lambda r: r['rank'])
     listed = recs
